@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 200 200">
+  <defs>
+    <linearGradient id="bgGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#EDD9A8"></stop>
+      <stop offset="1" stop-color="#E0C685"></stop>
+    </linearGradient>
+    <clipPath id="roundedSquare">
+      <rect x="0" y="0" width="200" height="200" rx="44.5" ry="44.5"></rect>
+    </clipPath>
+  </defs>
+  <g clip-path="url(#roundedSquare)">
+    <rect x="0" y="0" width="200" height="200" fill="url(#bgGrad)"></rect>
+    <g stroke="#ffffff" stroke-width="15" stroke-linecap="round" fill="none">
+      <path d="M34 68 V47 A13 13 0 0 1 47 34 H68"></path>
+      <path d="M132 34 H153 A13 13 0 0 1 166 47 V68"></path>
+      <path d="M34 132 V153 A13 13 0 0 0 47 166 H68"></path>
+      <path d="M166 132 V153 A13 13 0 0 1 153 166 H132"></path>
+    </g>
+    <ellipse cx="100" cy="160" rx="30" ry="5" fill="rgba(60,40,10,0.12)"></ellipse>
+    <path d="M90 63 H110 L118 80 V148 A10 10 0 0 1 108 158 H92 A10 10 0 0 1 82 148 V80 Z" fill="#F7EFDC" stroke="#ffffff" stroke-width="5" stroke-linejoin="round"></path>
+    <rect x="88" y="48" width="24" height="15" rx="4" fill="#ffffff"></rect>
+    <rect x="86" y="96" width="28" height="34" rx="3" fill="#ffffff"></rect>
+    <g fill="#5B4632">
+      <rect x="88.5" y="101" width="1.5" height="24"></rect>
+      <rect x="91.5" y="101" width="1" height="24"></rect>
+      <rect x="94" y="101" width="2" height="24"></rect>
+      <rect x="97.5" y="101" width="1" height="24"></rect>
+      <rect x="100" y="101" width="1.5" height="24"></rect>
+      <rect x="103" y="101" width="1" height="24"></rect>
+      <rect x="105.5" y="101" width="2" height="24"></rect>
+      <rect x="109" y="101" width="1" height="24"></rect>
+      <rect x="111.5" y="101" width="1.5" height="24"></rect>
+    </g>
+  </g>
+</svg>
