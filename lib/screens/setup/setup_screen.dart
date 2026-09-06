@@ -88,121 +88,141 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
     final tokens = AppTokens.of(context);
 
     return Scaffold(
-      body: Center(
-        child: AppCard(
-          padding: const EdgeInsets.fromLTRB(36, 40, 36, 34),
-          borderRadius: const BorderRadius.all(Radius.circular(28)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x335A4014),
-              blurRadius: 56,
-              offset: Offset(0, 24),
-            ),
-          ],
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 420),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Center(
-                  child: DecoratedBox(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFF6EFE1),
-                      shape: BoxShape.circle,
+      // Three password fields plus an error line is the tallest form in the
+      // app — at the app's own enforced 700px minimum window height, or
+      // with a larger OS text-scale setting, that's enough to no longer
+      // fit. LayoutBuilder + a min-height ConstrainedBox keeps this
+      // centered exactly as before when it fits, and lets it scroll
+      // instead of hard-overflowing when it doesn't.
+      body: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight - 48,
+              ),
+              child: Center(
+                child: AppCard(
+                  padding: const EdgeInsets.fromLTRB(36, 40, 36, 34),
+                  borderRadius: const BorderRadius.all(Radius.circular(28)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: tokens.shadowColor.withValues(alpha: 0.20),
+                      blurRadius: 56,
+                      offset: const Offset(0, 24),
                     ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(15),
-                      child: Icon(
-                        Icons.person_add_alt_rounded,
-                        size: 24,
-                        color: tokens.goldDeep,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Text(
-                  'إنشاء حساب المشرف',
-                  textAlign: TextAlign.center,
-                  style: AppTheme.weighted(
-                    theme.textTheme.headlineSmall,
-                    FontWeight.w700,
-                  ).copyWith(fontSize: 28),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  'يتم هذا مرة واحدة فقط، عند أول فتح للتطبيق في المتجر.',
-                  textAlign: TextAlign.center,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: tokens.muted,
-                  ),
-                ),
-                const SizedBox(height: 30),
-                LabeledField(
-                  label: 'اسم المستخدم',
-                  controller: _usernameController,
-                  icon: Icons.person_outline_rounded,
-                  textInputAction: TextInputAction.next,
-                  onSubmitted: (_) => _passwordFocus.requestFocus(),
-                  enabled: !_isSubmitting,
-                  autofocus: true,
-                ),
-                const SizedBox(height: 16),
-                LabeledField(
-                  label: 'كلمة المرور',
-                  controller: _passwordController,
-                  focusNode: _passwordFocus,
-                  icon: Icons.lock_outline_rounded,
-                  obscureText: true,
-                  textInputAction: TextInputAction.next,
-                  onSubmitted: (_) => _confirmFocus.requestFocus(),
-                  enabled: !_isSubmitting,
-                ),
-                const SizedBox(height: 16),
-                LabeledField(
-                  label: 'تأكيد كلمة المرور',
-                  controller: _confirmController,
-                  focusNode: _confirmFocus,
-                  icon: Icons.lock_outline_rounded,
-                  obscureText: true,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _submit(),
-                  enabled: !_isSubmitting,
-                ),
-                if (_errorText != null) ...[
-                  const SizedBox(height: 12),
-                  Text(
-                    _errorText!,
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.error,
-                    ),
-                  ),
-                ],
-                const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: _isSubmitting ? null : _submit,
-                    style: AppTheme.darkButtonStyle(
-                      context,
-                      shape: const RoundedRectangleBorder(
-                        borderRadius: BorderRadius.all(Radius.circular(13)),
-                      ),
-                    ),
-                    child: _isSubmitting
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Colors.white,
+                  ],
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Center(
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: tokens.iconBadgeBg,
+                              shape: BoxShape.circle,
                             ),
-                          )
-                        : const Text('إنشاء الحساب'),
+                            child: Padding(
+                              padding: const EdgeInsets.all(15),
+                              child: Icon(
+                                Icons.person_add_alt_rounded,
+                                size: 24,
+                                color: tokens.goldDeep,
+                              ),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 14),
+                        Text(
+                          'إنشاء حساب المشرف',
+                          textAlign: TextAlign.center,
+                          style: AppTheme.weighted(
+                            theme.textTheme.headlineSmall,
+                            FontWeight.w700,
+                          ).copyWith(fontSize: 28),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'يتم هذا مرة واحدة فقط، عند أول فتح للتطبيق في المتجر.',
+                          textAlign: TextAlign.center,
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: tokens.muted,
+                          ),
+                        ),
+                        const SizedBox(height: 30),
+                        LabeledField(
+                          label: 'اسم المستخدم',
+                          controller: _usernameController,
+                          icon: Icons.person_outline_rounded,
+                          textInputAction: TextInputAction.next,
+                          onSubmitted: (_) => _passwordFocus.requestFocus(),
+                          enabled: !_isSubmitting,
+                          autofocus: true,
+                        ),
+                        const SizedBox(height: 16),
+                        LabeledField(
+                          label: 'كلمة المرور',
+                          controller: _passwordController,
+                          focusNode: _passwordFocus,
+                          icon: Icons.lock_outline_rounded,
+                          obscureText: true,
+                          textInputAction: TextInputAction.next,
+                          onSubmitted: (_) => _confirmFocus.requestFocus(),
+                          enabled: !_isSubmitting,
+                        ),
+                        const SizedBox(height: 16),
+                        LabeledField(
+                          label: 'تأكيد كلمة المرور',
+                          controller: _confirmController,
+                          focusNode: _confirmFocus,
+                          icon: Icons.lock_outline_rounded,
+                          obscureText: true,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _submit(),
+                          enabled: !_isSubmitting,
+                        ),
+                        if (_errorText != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            _errorText!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.error,
+                            ),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton(
+                            onPressed: _isSubmitting ? null : _submit,
+                            style: AppTheme.darkButtonStyle(
+                              context,
+                              shape: const RoundedRectangleBorder(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(13),
+                                ),
+                              ),
+                            ),
+                            child: _isSubmitting
+                                ? SizedBox(
+                                    width: 18,
+                                    height: 18,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      color: theme.colorScheme.onPrimary,
+                                    ),
+                                  )
+                                : const Text('إنشاء الحساب'),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ),

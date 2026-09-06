@@ -55,7 +55,8 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/',
         name: Routes.home,
-        builder: (context, state) => const HomeScreen(),
+        builder: (context, state) =>
+            HomeScreen(initialUnknownBarcode: state.extra as String?),
       ),
       GoRoute(
         path: '/login',

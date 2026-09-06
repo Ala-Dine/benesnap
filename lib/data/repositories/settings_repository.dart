@@ -3,6 +3,7 @@ import 'package:drift/drift.dart';
 import '../db/app_database.dart';
 import '../exceptions.dart';
 import '../models/home_text.dart';
+import '../models/home_theme.dart';
 
 /// The shop's customizable kiosk homepage text — a single row (id fixed at
 /// 1), absent until the shop saves it for the first time.
@@ -46,7 +47,11 @@ class SettingsRepository {
         _db.appSettings,
       )..where((s) => s.id.equals(_rowId))).getSingleOrNull();
       if (row == null) return null;
-      return HomeText(welcomeTitle: row.welcomeTitle, extraLine: row.extraLine);
+      return HomeText(
+        welcomeTitle: row.welcomeTitle,
+        extraLine: row.extraLine,
+        themeKey: homeThemeKeyFromStorage(row.themeKey),
+      );
     } catch (e) {
       throw StorageException(e);
     }
@@ -55,6 +60,7 @@ class SettingsRepository {
   Future<void> updateHomeText({
     required String welcomeTitle,
     required String extraLine,
+    required HomeThemeKey themeKey,
   }) async {
     final trimmedTitle = welcomeTitle.trim();
     try {
@@ -67,6 +73,7 @@ class SettingsRepository {
                 trimmedTitle.isEmpty ? defaultWelcomeTitle : trimmedTitle,
               ),
               extraLine: Value(extraLine.trim()),
+              themeKey: Value(themeKey.name),
             ),
           );
     } catch (e) {
@@ -77,5 +84,6 @@ class SettingsRepository {
   HomeText _toHomeText(AppSettingsRow? row) => HomeText(
     welcomeTitle: row?.welcomeTitle ?? defaultWelcomeTitle,
     extraLine: row?.extraLine ?? '',
+    themeKey: homeThemeKeyFromStorage(row?.themeKey),
   );
 }

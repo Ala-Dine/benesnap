@@ -558,12 +558,9 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
                   children: [
                     DecoratedBox(
                       decoration: BoxDecoration(
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.surface,
                         shape: BoxShape.circle,
-                        border: Border.all(
-                          color: const Color(0xFFEAE0CC),
-                          width: 1.5,
-                        ),
+                        border: Border.all(color: tokens.border, width: 1.5),
                       ),
                       child: IconButton(
                         onPressed: _isSaving ? null : _cancel,
@@ -788,12 +785,12 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
                             ),
                           ),
                           child: _isSaving
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 18,
                                   height: 18,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Colors.white,
+                                    color: theme.colorScheme.onPrimary,
                                   ),
                                 )
                               : Text(_isEditing ? 'حفظ' : 'إضافة'),

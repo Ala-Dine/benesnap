@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+import '../models/home_theme.dart' show HomeThemeKey, defaultHomeThemeKey;
 import '../models/suitability_tag.dart' show TagCategory;
 
 @DataClassName('ProductRow')
@@ -93,6 +94,11 @@ class AppSettings extends Table {
   IntColumn get id => integer()();
   TextColumn get welcomeTitle => text()();
   TextColumn get extraLine => text()();
+
+  /// A [HomeThemeKey.name], e.g. `"sand"` — never the raw colour values.
+  /// Null until the shop picks one; [SettingsRepository] falls back to
+  /// [defaultHomeThemeKey] the same way it does for the text fields.
+  TextColumn get themeKey => text().nullable()();
 
   @override
   Set<Column> get primaryKey => {id};

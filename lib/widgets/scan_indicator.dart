@@ -34,7 +34,8 @@ class ScanIndicator extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   _BarcodeFrameIcon(
-                    size: 66,
+                    width: 112,
+                    height: 66,
                     color: theme.colorScheme.onSurface,
                   ),
                   const SizedBox(height: 14),
@@ -60,19 +61,26 @@ class ScanIndicator extends StatelessWidget {
 /// A barcode inside four viewfinder corner brackets.
 ///
 /// Not a Material icon — nothing in Flutter's built-in set pairs a barcode
-/// with a scan frame. Reuses the exact bracket geometry from the app's own
-/// icon (see windows/runner/resources/app_icon.ico), just with barcode bars
-/// where that icon has a bottle, so the two stay visually consistent.
+/// with a scan frame. Echoes the corner-bracket language of the app's own
+/// icon (see windows/runner/resources/app_icon.ico), but wide rather than
+/// square — a real barcode reads left to right, so the frame around it
+/// should too — with taller, denser bars so it reads clearly as a barcode
+/// at a glance rather than a handful of stray lines.
 class _BarcodeFrameIcon extends StatelessWidget {
-  const _BarcodeFrameIcon({required this.size, required this.color});
+  const _BarcodeFrameIcon({
+    required this.width,
+    required this.height,
+    required this.color,
+  });
 
-  final double size;
+  final double width;
+  final double height;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
     return CustomPaint(
-      size: Size.square(size),
+      size: Size(width, height),
       painter: _BarcodeFramePainter(color: color),
     );
   }
@@ -83,34 +91,42 @@ class _BarcodeFramePainter extends CustomPainter {
 
   final Color color;
 
-  // A 200x200 design space — matching the app icon's own viewBox — so the
-  // bracket arm length, corner radius and stroke width scale together the
-  // same way they do there.
-  static const _designSize = 200.0;
+  // A 220x132 design space (5:3) — wide enough for the corner brackets to
+  // read as a scan frame rather than a square, matched by the icon's own
+  // rendered width/height so the scale below never distorts the strokes.
+  static const _designWidth = 220.0;
+  static const _designHeight = 132.0;
 
-  static const _barLefts = [
-    63.25,
-    72.25,
-    79.75,
-    90.25,
-    97.75,
-    106.75,
-    114.25,
-    124.75,
-    132.25,
+  // A denser, more irregular rhythm than a handful of even bars reads more
+  // like an actual barcode. Uniform 6.0 gaps between them, centered in the
+  // frame — see the _brackets corner math below for how the margins line up.
+  static const _barWidths = [
+    5.0,
+    9.0,
+    3.0,
+    7.0,
+    5.0,
+    3.0,
+    9.0,
+    5.0,
+    7.0,
+    3.0,
+    5.0,
+    9.0,
+    3.0,
   ];
-  static const _barWidths = [4.5, 3.0, 6.0, 3.0, 4.5, 3.0, 6.0, 3.0, 4.5];
-  static const _barTop = 72.0;
-  static const _barHeight = 56.0;
+  static const _barGap = 6.0;
+  static const _barTop = 30.0;
+  static const _barHeight = 72.0;
 
   @override
   void paint(Canvas canvas, Size size) {
-    canvas.scale(size.width / _designSize, size.height / _designSize);
+    canvas.scale(size.width / _designWidth, size.height / _designHeight);
 
     final framePaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 15
+      ..strokeWidth = 12
       ..strokeCap = StrokeCap.round;
 
     for (final bracket in _brackets) {
@@ -118,43 +134,51 @@ class _BarcodeFramePainter extends CustomPainter {
     }
 
     final barPaint = Paint()..color = color;
-    for (var i = 0; i < _barLefts.length; i++) {
+    final totalBarWidth =
+        _barWidths.reduce((a, b) => a + b) + _barGap * (_barWidths.length - 1);
+    var left = (_designWidth - totalBarWidth) / 2;
+    for (final width in _barWidths) {
       canvas.drawRect(
-        Rect.fromLTWH(_barLefts[i], _barTop, _barWidths[i], _barHeight),
+        Rect.fromLTWH(left, _barTop, width, _barHeight),
         barPaint,
       );
+      left += width + _barGap;
     }
   }
 
+  // Corner brackets for a margin of 18 (x) / 16 (y) inside the design space,
+  // 10-radius rounded corners with a 16-long straight arm on each side —
+  // the same bracket language as the app icon, just fitted to a wide
+  // rectangle instead of a square.
   static final List<Path> _brackets = [
     // Top-left
     Path()
-      ..moveTo(34, 68)
-      ..lineTo(34, 47)
-      ..arcToPoint(const Offset(47, 34), radius: const Radius.circular(13))
-      ..lineTo(68, 34),
+      ..moveTo(18, 42)
+      ..lineTo(18, 26)
+      ..arcToPoint(const Offset(28, 16), radius: const Radius.circular(10))
+      ..lineTo(44, 16),
     // Top-right
     Path()
-      ..moveTo(132, 34)
-      ..lineTo(153, 34)
-      ..arcToPoint(const Offset(166, 47), radius: const Radius.circular(13))
-      ..lineTo(166, 68),
+      ..moveTo(176, 16)
+      ..lineTo(192, 16)
+      ..arcToPoint(const Offset(202, 26), radius: const Radius.circular(10))
+      ..lineTo(202, 42),
     // Bottom-left
     Path()
-      ..moveTo(34, 132)
-      ..lineTo(34, 153)
+      ..moveTo(18, 90)
+      ..lineTo(18, 106)
       ..arcToPoint(
-        const Offset(47, 166),
-        radius: const Radius.circular(13),
+        const Offset(28, 116),
+        radius: const Radius.circular(10),
         clockwise: false,
       )
-      ..lineTo(68, 166),
+      ..lineTo(44, 116),
     // Bottom-right
     Path()
-      ..moveTo(166, 132)
-      ..lineTo(166, 153)
-      ..arcToPoint(const Offset(153, 166), radius: const Radius.circular(13))
-      ..lineTo(132, 166),
+      ..moveTo(202, 90)
+      ..lineTo(202, 106)
+      ..arcToPoint(const Offset(192, 116), radius: const Radius.circular(10))
+      ..lineTo(176, 116),
   ];
 
   @override

@@ -20,7 +20,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -31,7 +31,13 @@ class AppDatabase extends _$AppDatabase {
         await _relabelSeedToArabic();
       }
       if (from < 3) {
+        // `createTable` builds from the *current* Dart table definition,
+        // not a v3 snapshot — it already includes `themeKey`, so a v1/v2
+        // database jumping straight to v4 must not also run the v3-to-v4
+        // step below, or it tries to add a column that already exists.
         await m.createTable(appSettings);
+      } else if (from < 4) {
+        await m.addColumn(appSettings, appSettings.themeKey);
       }
     },
     beforeOpen: (details) async {

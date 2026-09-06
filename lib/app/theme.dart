@@ -1,51 +1,16 @@
 import 'package:flutter/material.dart';
 
-/// Raw palette values sampled from `Shope_Scanner_dc.html`, the approved
-/// design. These are the only literal colours in the app. Widgets must read
-/// colours from [ColorScheme] or from the [AppTokens] theme extension, never
-/// from here.
-abstract final class _Palette {
-  // Backgrounds.
-  static const canvas = Color(0xFFE8CE9E);
-  static const canvasGradientTop = Color(0xFFECD8AC);
-  static const formCanvas = Color(0xFFFCFAF6);
+import '../data/models/home_theme.dart';
+
+/// Fixed, theme-invariant colours — semantic meaning (success/danger) or
+/// pure neutrals that must read the same regardless of which
+/// [HomeThemeKey] the shop has picked. Everything else the app's visual
+/// design needs is derived per-theme by [_BgFamily]/[_InkFamily] below,
+/// from that key's own [HomeThemeKey.bg]/[HomeThemeKey.title].
+abstract final class _Fixed {
   static const surface = Color(0xFFFFFFFF);
-
-  /// Hover shade for a tan pill, taken directly from the design's own
-  /// `style-hover` on the not-found screen's "scan another product" button.
-  static const canvasPressed = Color(0xFFDFC085);
-
-  // Ink / text.
-  static const ink = Color(0xFF1B1A17);
-  static const inkHover = Color(0xFF33301F);
-  static const label = Color(0xFF5C4A2A);
-  static const body = Color(0xFF6E5527);
-  static const muted = Color(0xFF9A8560);
-  static const faint = Color(0xFFB0A488);
-  static const placeholder = Color(0xFFB3A88F);
   static const onDark = Color(0xFFFFFFFF);
 
-  // Borders / accents.
-  static const border = Color(0xFFE4D6BA);
-  static const borderFocus = Color(0xFFC9A45E);
-  static const gold = Color(0xFFB08F45);
-  static const goldDeep = Color(0xFF8A6C33);
-  static const divider = Color(0xFFF0E9DA);
-
-  // Editable form chips (add/edit product screen).
-  static const chipOnBg = canvas;
-  static const chipOnFg = Color(0xFF3A2C10);
-  static const chipOnBorder = Color(0xFFD8B876);
-  static const chipOffBg = surface;
-  static const chipOffFg = Color(0xFF7C6537);
-
-  // Display-only suitability chips (product detail screen).
-  static const skinChipBg = Color(0xFFF0E3C8);
-  static const skinChipFg = Color(0xFF5C4413);
-  static const hairChipBg = Color(0xFFEEEBE4);
-  static const hairChipFg = Color(0xFF5F5A4E);
-
-  // Status.
   static const successBg = Color(0xFFF1F7EF);
   static const successBorder = Color(0xFFBFDDBC);
   static const successFg = Color(0xFF3F6B3A);
@@ -53,19 +18,166 @@ abstract final class _Palette {
   static const dangerBorder = Color(0xFFE9B7A4);
   static const dangerFg = Color(0xFFA05540);
 
-  // Image zones.
-  static const dropzoneBorder = Color(0xFFDCCDAF);
-  static const imagePanelBg = Color(0xFFFAF7F0);
-  static const imagePanelBorder = Color(0xFFEFE6D3);
-
-  /// Shadows are warm brown (rgb 90,64,20) at varying alpha, never neutral
-  /// grey — this is a deliberate, visible part of the design.
-  static const _shadowBase = Color(0xFF5A4014);
-  static const shadowMid = Color(0x245A4014); // ~.14 alpha — cards
-  static const shadowHigh = Color(0x385A4014); // ~.22 alpha — the scan button
+  /// "Hair" suitability chips are deliberately neutral grey, in contrast to
+  /// the warm "skin" chips below — a real category distinction on the
+  /// product detail screen, not decoration, so it stays put regardless of
+  /// the shop's chosen theme.
+  static const hairChipBg = Color(0xFFEEEBE4);
+  static const hairChipFg = Color(0xFF5F5A4E);
 }
 
-/// Design tokens that have no home in [ColorScheme] or [TextTheme].
+/// A shift in HSL space, used to derive one design token from a
+/// [HomeThemeKey]'s anchor colour. [saturation]/[lightness] are
+/// percentage-point deltas (e.g. `-6.7`), not the `0.0`-`1.0` fractions
+/// [HSLColor] itself stores.
+///
+/// The numbers in [_BgFamily]/[_InkFamily] aren't invented: they're the
+/// real H/S/L differences between the original approved (tan) design's own
+/// tokens — e.g. `canvasPressed` really is `canvas` at -6.7% lightness,
+/// -3.2% saturation — measured once from that design and re-applied to
+/// every theme's anchor colour, so all five palettes share the exact same
+/// internal relationships the original design already established rather
+/// than five independently hand-picked colour sets.
+class _HslShift {
+  const _HslShift({this.hue = 0, this.saturation = 0, this.lightness = 0});
+
+  final double hue;
+  final double saturation;
+  final double lightness;
+
+  Color apply(Color anchor) {
+    final hsl = HSLColor.fromColor(anchor);
+    return hsl
+        .withHue((hsl.hue + hue) % 360)
+        .withSaturation((hsl.saturation + saturation / 100).clamp(0.0, 1.0))
+        .withLightness((hsl.lightness + lightness / 100).clamp(0.0, 1.0))
+        .toColor();
+  }
+}
+
+/// Backgrounds, borders, and dividers — every shift here is relative to
+/// [HomeThemeKey.bg].
+abstract final class _BgFamily {
+  static const canvasGradientTop = _HslShift(
+    hue: 2.33,
+    saturation: 1.08,
+    lightness: 3.53,
+  );
+  static const canvasPressed = _HslShift(
+    hue: 0.41,
+    saturation: -3.23,
+    lightness: -6.67,
+  );
+  static const border = _HslShift(
+    hue: 1.08,
+    saturation: -17.92,
+    lightness: 4.71,
+  );
+  static const divider = _HslShift(
+    hue: 1.99,
+    saturation: -19.36,
+    lightness: 13.33,
+  );
+  static const formCanvas = _HslShift(
+    hue: 1.08,
+    saturation: -11.67,
+    lightness: 21.18,
+  );
+  static const imagePanelBg = _HslShift(
+    hue: 3.08,
+    saturation: -11.67,
+    lightness: 19.61,
+  );
+  static const imagePanelBorder = _HslShift(
+    hue: 1.80,
+    saturation: -15.00,
+    lightness: 11.76,
+  );
+  static const dropzoneBorder = _HslShift(
+    hue: 1.08,
+    saturation: -22.54,
+    lightness: 0.98,
+  );
+  static const skinChipBg = _HslShift(
+    hue: 1.58,
+    saturation: -4.52,
+    lightness: 9.80,
+  );
+
+  /// The light circular badge behind a card-header icon (settings, login,
+  /// setup, the kiosk's not-found card).
+  static const iconBadgeBg = _HslShift(
+    hue: 1.08,
+    saturation: -7.82,
+    lightness: 15.88,
+  );
+}
+
+/// Text, ink, and accent tones — every shift here is relative to
+/// [HomeThemeKey.title].
+abstract final class _InkFamily {
+  static const ink = _HslShift(
+    hue: 6.60,
+    saturation: -29.31,
+    lightness: -16.47,
+  );
+  static const inkHover = _HslShift(
+    hue: 12.60,
+    saturation: -12.92,
+    lightness: -10.20,
+  );
+  static const body = _HslShift(hue: 0.47, saturation: 10.34, lightness: 2.94);
+  static const faint = _HslShift(
+    hue: 3.60,
+    saturation: -17.11,
+    lightness: 34.90,
+  );
+  static const placeholder = _HslShift(
+    hue: 3.27,
+    saturation: -18.16,
+    lightness: 36.86,
+  );
+  static const chipOnFg = _HslShift(
+    hue: 1.60,
+    saturation: 19.44,
+    lightness: -11.76,
+  );
+  static const chipOffFg = _HslShift(
+    hue: 1.60,
+    saturation: 1.23,
+    lightness: 8.82,
+  );
+  static const skinChipFg = _HslShift(
+    hue: 1.87,
+    saturation: 28.45,
+    lightness: -4.51,
+  );
+  static const gold = _HslShift(hue: 3.10, saturation: 6.36, lightness: 21.76);
+  static const goldDeep = _HslShift(
+    hue: 0.91,
+    saturation: 8.72,
+    lightness: 10.78,
+  );
+  static const borderFocus = _HslShift(
+    hue: 0.85,
+    saturation: 12.45,
+    lightness: 31.57,
+  );
+  static const chipOnBorder = _HslShift(
+    hue: 2.01,
+    saturation: 18.37,
+    lightness: 39.22,
+  );
+  static const shadowBase = _HslShift(
+    hue: -0.69,
+    saturation: 26.32,
+    lightness: -4.71,
+  );
+}
+
+/// Design tokens that have no home in [ColorScheme] or [TextTheme]. Built
+/// fresh per [HomeThemeKey] by [AppTokens.forTheme] — nothing here is a
+/// fixed constant except by way of [_Fixed].
 @immutable
 class AppTokens extends ThemeExtension<AppTokens> {
   const AppTokens({
@@ -73,6 +185,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
     required this.cardShadow,
     required this.formCanvas,
     required this.canvasGradientTop,
+    required this.ink,
+    required this.inkHover,
     required this.label,
     required this.body,
     required this.muted,
@@ -100,6 +214,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
     required this.imagePanelBorder,
     required this.successBg,
     required this.prominentShadow,
+    required this.shadowColor,
+    required this.iconBadgeBg,
   });
 
   /// The shared radius/shadow for a "big white card on canvas" — login,
@@ -109,6 +225,14 @@ class AppTokens extends ThemeExtension<AppTokens> {
 
   final Color formCanvas;
   final Color canvasGradientTop;
+
+  /// The near-black primary-action colour (dark buttons, icons, primary
+  /// text) — also [ColorScheme.primary]. Exposed here too since a handful
+  /// of call sites (e.g. [AppTheme.darkButtonStyle]) only have a
+  /// [BuildContext], not the [HomeThemeKey] itself, to derive it from.
+  final Color ink;
+  final Color inkHover;
+
   final Color label;
   final Color body;
   final Color muted;
@@ -139,55 +263,80 @@ class AppTokens extends ThemeExtension<AppTokens> {
   /// The scan button / modal-level shadow — visibly heavier than [cardShadow].
   final List<BoxShadow> prominentShadow;
 
-  static const _light = AppTokens(
-    cardRadius: BorderRadius.all(Radius.circular(24)),
-    cardShadow: [
-      BoxShadow(
-        color: _Palette.shadowMid,
-        blurRadius: 18,
-        offset: Offset(0, 6),
-      ),
-    ],
-    formCanvas: _Palette.formCanvas,
-    canvasGradientTop: _Palette.canvasGradientTop,
-    label: _Palette.label,
-    body: _Palette.body,
-    muted: _Palette.muted,
-    faint: _Palette.faint,
-    border: _Palette.border,
-    borderFocus: _Palette.borderFocus,
-    gold: _Palette.gold,
-    goldDeep: _Palette.goldDeep,
-    divider: _Palette.divider,
-    chipOnBg: _Palette.chipOnBg,
-    chipOnFg: _Palette.chipOnFg,
-    chipOnBorder: _Palette.chipOnBorder,
-    chipOffBg: _Palette.chipOffBg,
-    chipOffFg: _Palette.chipOffFg,
-    skinChipBg: _Palette.skinChipBg,
-    skinChipFg: _Palette.skinChipFg,
-    hairChipBg: _Palette.hairChipBg,
-    hairChipFg: _Palette.hairChipFg,
-    successBorder: _Palette.successBorder,
-    successFg: _Palette.successFg,
-    dangerBg: _Palette.dangerBg,
-    dangerBorder: _Palette.dangerBorder,
-    dropzoneBorder: _Palette.dropzoneBorder,
-    imagePanelBg: _Palette.imagePanelBg,
-    imagePanelBorder: _Palette.imagePanelBorder,
-    successBg: _Palette.successBg,
-    prominentShadow: [
-      BoxShadow(
-        color: _Palette.shadowHigh,
-        blurRadius: 44,
-        offset: Offset(0, 20),
-      ),
-    ],
-  );
+  /// The raw, opaque shadow tint [cardShadow]/[prominentShadow] are built
+  /// from — for a one-off shadow at a weight neither preset covers, use
+  /// `tokens.shadowColor.withValues(alpha: ...)` rather than a literal
+  /// colour, so its hue still follows the shop's theme.
+  final Color shadowColor;
+
+  /// The light circular badge behind a card-header icon (settings, login,
+  /// setup, the kiosk's not-found card).
+  final Color iconBadgeBg;
+
+  /// Derives every token in one pass from [key]'s `bg`/`title` anchors (see
+  /// [_HslShift]'s doc comment for how) plus the handful of theme-invariant
+  /// values in [_Fixed].
+  factory AppTokens.forTheme(HomeThemeKey key) {
+    final canvas = key.bg;
+    final label = key.title;
+    final shadowColor = _InkFamily.shadowBase.apply(label);
+
+    return AppTokens(
+      cardRadius: const BorderRadius.all(Radius.circular(24)),
+      cardShadow: [
+        BoxShadow(
+          color: shadowColor.withValues(alpha: 0.14),
+          blurRadius: 18,
+          offset: const Offset(0, 6),
+        ),
+      ],
+      formCanvas: _BgFamily.formCanvas.apply(canvas),
+      canvasGradientTop: _BgFamily.canvasGradientTop.apply(canvas),
+      ink: _InkFamily.ink.apply(label),
+      inkHover: _InkFamily.inkHover.apply(label),
+      label: label,
+      body: _InkFamily.body.apply(label),
+      muted: key.subtitle,
+      faint: _InkFamily.faint.apply(label),
+      border: _BgFamily.border.apply(canvas),
+      borderFocus: _InkFamily.borderFocus.apply(label),
+      gold: _InkFamily.gold.apply(label),
+      goldDeep: _InkFamily.goldDeep.apply(label),
+      divider: _BgFamily.divider.apply(canvas),
+      chipOnBg: canvas,
+      chipOnFg: _InkFamily.chipOnFg.apply(label),
+      chipOnBorder: _InkFamily.chipOnBorder.apply(label),
+      chipOffBg: _Fixed.surface,
+      chipOffFg: _InkFamily.chipOffFg.apply(label),
+      skinChipBg: _BgFamily.skinChipBg.apply(canvas),
+      skinChipFg: _InkFamily.skinChipFg.apply(label),
+      hairChipBg: _Fixed.hairChipBg,
+      hairChipFg: _Fixed.hairChipFg,
+      successBorder: _Fixed.successBorder,
+      successFg: _Fixed.successFg,
+      dangerBg: _Fixed.dangerBg,
+      dangerBorder: _Fixed.dangerBorder,
+      dropzoneBorder: _BgFamily.dropzoneBorder.apply(canvas),
+      imagePanelBg: _BgFamily.imagePanelBg.apply(canvas),
+      imagePanelBorder: _BgFamily.imagePanelBorder.apply(canvas),
+      successBg: _Fixed.successBg,
+      prominentShadow: [
+        BoxShadow(
+          color: shadowColor.withValues(alpha: 0.22),
+          blurRadius: 44,
+          offset: const Offset(0, 20),
+        ),
+      ],
+      shadowColor: shadowColor,
+      iconBadgeBg: _BgFamily.iconBadgeBg.apply(canvas),
+    );
+  }
+
+  static final _fallback = AppTokens.forTheme(defaultHomeThemeKey);
 
   /// Convenience accessor so widgets can write `AppTokens.of(context).gold`.
   static AppTokens of(BuildContext context) =>
-      Theme.of(context).extension<AppTokens>() ?? _light;
+      Theme.of(context).extension<AppTokens>() ?? _fallback;
 
   @override
   AppTokens copyWith({
@@ -195,6 +344,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
     List<BoxShadow>? cardShadow,
     Color? formCanvas,
     Color? canvasGradientTop,
+    Color? ink,
+    Color? inkHover,
     Color? label,
     Color? body,
     Color? muted,
@@ -222,12 +373,16 @@ class AppTokens extends ThemeExtension<AppTokens> {
     Color? imagePanelBorder,
     Color? successBg,
     List<BoxShadow>? prominentShadow,
+    Color? shadowColor,
+    Color? iconBadgeBg,
   }) {
     return AppTokens(
       cardRadius: cardRadius ?? this.cardRadius,
       cardShadow: cardShadow ?? this.cardShadow,
       formCanvas: formCanvas ?? this.formCanvas,
       canvasGradientTop: canvasGradientTop ?? this.canvasGradientTop,
+      ink: ink ?? this.ink,
+      inkHover: inkHover ?? this.inkHover,
       label: label ?? this.label,
       body: body ?? this.body,
       muted: muted ?? this.muted,
@@ -255,6 +410,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
       imagePanelBorder: imagePanelBorder ?? this.imagePanelBorder,
       successBg: successBg ?? this.successBg,
       prominentShadow: prominentShadow ?? this.prominentShadow,
+      shadowColor: shadowColor ?? this.shadowColor,
+      iconBadgeBg: iconBadgeBg ?? this.iconBadgeBg,
     );
   }
 
@@ -270,6 +427,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
         other.canvasGradientTop,
         t,
       )!,
+      ink: Color.lerp(ink, other.ink, t)!,
+      inkHover: Color.lerp(inkHover, other.inkHover, t)!,
       label: Color.lerp(label, other.label, t)!,
       body: Color.lerp(body, other.body, t)!,
       muted: Color.lerp(muted, other.muted, t)!,
@@ -305,72 +464,79 @@ class AppTokens extends ThemeExtension<AppTokens> {
         other.prominentShadow,
         t,
       )!,
+      shadowColor: Color.lerp(shadowColor, other.shadowColor, t)!,
+      iconBadgeBg: Color.lerp(iconBadgeBg, other.iconBadgeBg, t)!,
     );
   }
 }
 
 abstract final class AppTheme {
-  static ThemeData get light {
-    const scheme = ColorScheme(
+  /// The app's [ThemeData] for [key] — every colour in the app, including
+  /// admin screens, derives from this one call. See [AppTokens.forTheme]
+  /// and [_HslShift] for how.
+  static ThemeData forTheme(HomeThemeKey key) {
+    final tokens = AppTokens.forTheme(key);
+    final canvas = key.bg;
+
+    final scheme = ColorScheme(
       brightness: Brightness.light,
-      primary: _Palette.ink,
-      onPrimary: _Palette.onDark,
-      secondary: _Palette.canvas,
-      onSecondary: _Palette.ink,
-      surface: _Palette.surface,
-      onSurface: _Palette.ink,
-      surfaceContainerHighest: _Palette.canvas,
-      onSurfaceVariant: _Palette.body,
-      outline: _Palette.border,
-      outlineVariant: _Palette.divider,
-      error: _Palette.dangerFg,
-      onError: _Palette.onDark,
-      errorContainer: _Palette.dangerBg,
-      onErrorContainer: _Palette.dangerFg,
-      shadow: _Palette._shadowBase,
+      primary: tokens.ink,
+      onPrimary: _Fixed.onDark,
+      secondary: canvas,
+      onSecondary: tokens.ink,
+      surface: _Fixed.surface,
+      onSurface: tokens.ink,
+      surfaceContainerHighest: canvas,
+      onSurfaceVariant: tokens.body,
+      outline: tokens.border,
+      outlineVariant: tokens.divider,
+      error: _Fixed.dangerFg,
+      onError: _Fixed.onDark,
+      errorContainer: _Fixed.dangerBg,
+      onErrorContainer: _Fixed.dangerFg,
+      shadow: tokens.shadowColor,
     );
 
-    final textTheme = _readexTextTheme(ThemeData.light().textTheme);
+    final placeholder = _InkFamily.placeholder.apply(key.title);
+    final canvasPressed = _BgFamily.canvasPressed.apply(canvas);
+    final textTheme = _readexTextTheme(ThemeData.light().textTheme, tokens.ink);
 
     return ThemeData(
       useMaterial3: true,
       colorScheme: scheme,
-      scaffoldBackgroundColor: _Palette.canvas,
+      scaffoldBackgroundColor: canvas,
       textTheme: textTheme,
-      extensions: const [AppTokens._light],
+      extensions: [tokens],
 
       // Visible focus rings are a hard requirement: every interactive element
       // has to be reachable and identifiable by keyboard alone.
-      focusColor: _Palette.canvasPressed,
+      focusColor: canvasPressed,
 
-      iconTheme: const IconThemeData(color: _Palette.ink),
+      iconTheme: IconThemeData(color: tokens.ink),
 
       appBarTheme: AppBarTheme(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: _Palette.canvas,
-        foregroundColor: _Palette.ink,
+        backgroundColor: canvas,
+        foregroundColor: tokens.ink,
         titleTextStyle: textTheme.titleLarge,
       ),
 
-      dividerTheme: const DividerThemeData(
-        color: _Palette.divider,
-        thickness: 1,
-      ),
+      dividerTheme: DividerThemeData(color: tokens.divider, thickness: 1),
 
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: _Palette.surface,
+        fillColor: _Fixed.surface,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: 16,
           vertical: 14,
         ),
-        hintStyle: textTheme.bodyLarge?.copyWith(color: _Palette.placeholder),
-        border: _inputBorder(_Palette.border),
-        enabledBorder: _inputBorder(_Palette.border),
-        focusedBorder: _inputBorder(_Palette.borderFocus, width: 2),
-        errorBorder: _inputBorder(_Palette.dangerFg),
-        focusedErrorBorder: _inputBorder(_Palette.dangerFg, width: 2),
+        hintStyle: textTheme.bodyLarge?.copyWith(color: placeholder),
+        border: _inputBorder(tokens.border),
+        enabledBorder: _inputBorder(tokens.border),
+        focusedBorder: _inputBorder(tokens.borderFocus, width: 2),
+        errorBorder: _inputBorder(_Fixed.dangerFg),
+        focusedErrorBorder: _inputBorder(_Fixed.dangerFg, width: 2),
       ),
 
       // Still a tan-pill default for whatever hasn't been reskinned to the
@@ -380,19 +546,19 @@ abstract final class AppTheme {
         style: ButtonStyle(
           backgroundColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.disabled)) {
-              return _Palette.canvas.withValues(alpha: 0.5);
+              return canvas.withValues(alpha: 0.5);
             }
             if (states.contains(WidgetState.pressed) ||
                 states.contains(WidgetState.hovered) ||
                 states.contains(WidgetState.focused)) {
-              return _Palette.canvasPressed;
+              return canvasPressed;
             }
-            return _Palette.canvas;
+            return canvas;
           }),
           // Not plain ink: the design uses a warmer, slightly lighter brown
           // for text sitting on the tan pill specifically — same value as
           // chipOnFg.
-          foregroundColor: const WidgetStatePropertyAll(_Palette.chipOnFg),
+          foregroundColor: WidgetStatePropertyAll(tokens.chipOnFg),
           overlayColor: const WidgetStatePropertyAll(Colors.transparent),
           elevation: const WidgetStatePropertyAll(0),
           shape: const WidgetStatePropertyAll(StadiumBorder()),
@@ -406,19 +572,19 @@ abstract final class AppTheme {
       ),
 
       chipTheme: ChipThemeData(
-        backgroundColor: _Palette.chipOffBg,
-        selectedColor: _Palette.chipOnBg,
-        checkmarkColor: _Palette.chipOnFg,
-        side: const BorderSide(color: _Palette.border),
-        labelStyle: textTheme.bodyMedium?.copyWith(color: _Palette.chipOffFg),
+        backgroundColor: tokens.chipOffBg,
+        selectedColor: tokens.chipOnBg,
+        checkmarkColor: tokens.chipOnFg,
+        side: BorderSide(color: tokens.border),
+        labelStyle: textTheme.bodyMedium?.copyWith(color: tokens.chipOffFg),
         secondaryLabelStyle: textTheme.bodyMedium?.copyWith(
-          color: _Palette.chipOnFg,
+          color: tokens.chipOnFg,
         ),
         shape: const StadiumBorder(),
       ),
 
       dialogTheme: DialogThemeData(
-        backgroundColor: _Palette.surface,
+        backgroundColor: _Fixed.surface,
         surfaceTintColor: Colors.transparent,
         shape: const RoundedRectangleBorder(
           borderRadius: BorderRadius.all(Radius.circular(24)),
@@ -427,19 +593,22 @@ abstract final class AppTheme {
         contentTextStyle: textTheme.bodyMedium,
       ),
 
-      progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: _Palette.ink,
-      ),
+      progressIndicatorTheme: ProgressIndicatorThemeData(color: tokens.ink),
 
       tooltipTheme: TooltipThemeData(
-        decoration: const BoxDecoration(
-          color: _Palette.ink,
-          borderRadius: BorderRadius.all(Radius.circular(8)),
+        decoration: BoxDecoration(
+          color: tokens.ink,
+          borderRadius: const BorderRadius.all(Radius.circular(8)),
         ),
-        textStyle: textTheme.bodySmall?.copyWith(color: _Palette.onDark),
+        textStyle: textTheme.bodySmall?.copyWith(color: _Fixed.onDark),
       ),
     );
   }
+
+  /// [forTheme] for [defaultHomeThemeKey] — the app's theme before the
+  /// shop's saved choice has loaded, and what a `MaterialApp` under test
+  /// gets if it doesn't care which theme it's testing.
+  static ThemeData get light => forTheme(defaultHomeThemeKey);
 
   static OutlineInputBorder _inputBorder(Color color, {double width = 1}) {
     return OutlineInputBorder(
@@ -469,19 +638,20 @@ abstract final class AppTheme {
     BuildContext context, {
     OutlinedBorder? shape,
   }) {
+    final tokens = AppTokens.of(context);
     return ButtonStyle(
       backgroundColor: WidgetStateProperty.resolveWith((states) {
         if (states.contains(WidgetState.disabled)) {
-          return _Palette.ink.withValues(alpha: 0.5);
+          return tokens.ink.withValues(alpha: 0.5);
         }
         if (states.contains(WidgetState.pressed) ||
             states.contains(WidgetState.hovered) ||
             states.contains(WidgetState.focused)) {
-          return _Palette.inkHover;
+          return tokens.inkHover;
         }
-        return _Palette.ink;
+        return tokens.ink;
       }),
-      foregroundColor: const WidgetStatePropertyAll(_Palette.onDark),
+      foregroundColor: const WidgetStatePropertyAll(_Fixed.onDark),
       overlayColor: const WidgetStatePropertyAll(Colors.transparent),
       elevation: const WidgetStatePropertyAll(0),
       shape: WidgetStatePropertyAll(shape ?? const StadiumBorder()),
@@ -496,16 +666,17 @@ abstract final class AppTheme {
 
   /// Rebuilds [base] with Readex Pro, keeping Material's default per-role
   /// font size and weight scale but overriding family, the Arabic-appropriate
-  /// line height and letter spacing, and driving the variable font's `wght`
-  /// axis explicitly via [FontVariation] (relying on `fontWeight` alone to
-  /// pick the right instance is not reliable on every text-rendering path).
-  static TextTheme _readexTextTheme(TextTheme base) {
+  /// line height and letter spacing, [ink] as the default text colour, and
+  /// driving the variable font's `wght` axis explicitly via [FontVariation]
+  /// (relying on `fontWeight` alone to pick the right instance is not
+  /// reliable on every text-rendering path).
+  static TextTheme _readexTextTheme(TextTheme base, Color ink) {
     TextStyle? readex(TextStyle? style) {
       if (style == null) return null;
       final weight = style.fontWeight ?? FontWeight.w400;
       return style.copyWith(
         fontFamily: 'Readex Pro',
-        color: _Palette.ink,
+        color: ink,
         height: 1.7,
         letterSpacing: 0,
         fontVariations: [FontVariation('wght', weight.value.toDouble())],

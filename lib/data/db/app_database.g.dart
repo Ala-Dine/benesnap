@@ -1649,8 +1649,19 @@ class $AppSettingsTable extends AppSettings
     type: DriftSqlType.string,
     requiredDuringInsert: true,
   );
+  static const VerificationMeta _themeKeyMeta = const VerificationMeta(
+    'themeKey',
+  );
   @override
-  List<GeneratedColumn> get $columns => [id, welcomeTitle, extraLine];
+  late final GeneratedColumn<String> themeKey = GeneratedColumn<String>(
+    'theme_key',
+    aliasedName,
+    true,
+    type: DriftSqlType.string,
+    requiredDuringInsert: false,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, welcomeTitle, extraLine, themeKey];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -1685,6 +1696,12 @@ class $AppSettingsTable extends AppSettings
     } else if (isInserting) {
       context.missing(_extraLineMeta);
     }
+    if (data.containsKey('theme_key')) {
+      context.handle(
+        _themeKeyMeta,
+        themeKey.isAcceptableOrUnknown(data['theme_key']!, _themeKeyMeta),
+      );
+    }
     return context;
   }
 
@@ -1706,6 +1723,10 @@ class $AppSettingsTable extends AppSettings
         DriftSqlType.string,
         data['${effectivePrefix}extra_line'],
       )!,
+      themeKey: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}theme_key'],
+      ),
     );
   }
 
@@ -1719,10 +1740,16 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
   final int id;
   final String welcomeTitle;
   final String extraLine;
+
+  /// A [HomeThemeKey.name], e.g. `"sand"` — never the raw colour values.
+  /// Null until the shop picks one; [SettingsRepository] falls back to
+  /// [defaultHomeThemeKey] the same way it does for the text fields.
+  final String? themeKey;
   const AppSettingsRow({
     required this.id,
     required this.welcomeTitle,
     required this.extraLine,
+    this.themeKey,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -1730,6 +1757,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     map['id'] = Variable<int>(id);
     map['welcome_title'] = Variable<String>(welcomeTitle);
     map['extra_line'] = Variable<String>(extraLine);
+    if (!nullToAbsent || themeKey != null) {
+      map['theme_key'] = Variable<String>(themeKey);
+    }
     return map;
   }
 
@@ -1738,6 +1768,9 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       id: Value(id),
       welcomeTitle: Value(welcomeTitle),
       extraLine: Value(extraLine),
+      themeKey: themeKey == null && nullToAbsent
+          ? const Value.absent()
+          : Value(themeKey),
     );
   }
 
@@ -1750,6 +1783,7 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       id: serializer.fromJson<int>(json['id']),
       welcomeTitle: serializer.fromJson<String>(json['welcomeTitle']),
       extraLine: serializer.fromJson<String>(json['extraLine']),
+      themeKey: serializer.fromJson<String?>(json['themeKey']),
     );
   }
   @override
@@ -1759,15 +1793,21 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
       'id': serializer.toJson<int>(id),
       'welcomeTitle': serializer.toJson<String>(welcomeTitle),
       'extraLine': serializer.toJson<String>(extraLine),
+      'themeKey': serializer.toJson<String?>(themeKey),
     };
   }
 
-  AppSettingsRow copyWith({int? id, String? welcomeTitle, String? extraLine}) =>
-      AppSettingsRow(
-        id: id ?? this.id,
-        welcomeTitle: welcomeTitle ?? this.welcomeTitle,
-        extraLine: extraLine ?? this.extraLine,
-      );
+  AppSettingsRow copyWith({
+    int? id,
+    String? welcomeTitle,
+    String? extraLine,
+    Value<String?> themeKey = const Value.absent(),
+  }) => AppSettingsRow(
+    id: id ?? this.id,
+    welcomeTitle: welcomeTitle ?? this.welcomeTitle,
+    extraLine: extraLine ?? this.extraLine,
+    themeKey: themeKey.present ? themeKey.value : this.themeKey,
+  );
   AppSettingsRow copyWithCompanion(AppSettingsCompanion data) {
     return AppSettingsRow(
       id: data.id.present ? data.id.value : this.id,
@@ -1775,6 +1815,7 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
           ? data.welcomeTitle.value
           : this.welcomeTitle,
       extraLine: data.extraLine.present ? data.extraLine.value : this.extraLine,
+      themeKey: data.themeKey.present ? data.themeKey.value : this.themeKey,
     );
   }
 
@@ -1783,46 +1824,53 @@ class AppSettingsRow extends DataClass implements Insertable<AppSettingsRow> {
     return (StringBuffer('AppSettingsRow(')
           ..write('id: $id, ')
           ..write('welcomeTitle: $welcomeTitle, ')
-          ..write('extraLine: $extraLine')
+          ..write('extraLine: $extraLine, ')
+          ..write('themeKey: $themeKey')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, welcomeTitle, extraLine);
+  int get hashCode => Object.hash(id, welcomeTitle, extraLine, themeKey);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is AppSettingsRow &&
           other.id == this.id &&
           other.welcomeTitle == this.welcomeTitle &&
-          other.extraLine == this.extraLine);
+          other.extraLine == this.extraLine &&
+          other.themeKey == this.themeKey);
 }
 
 class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
   final Value<int> id;
   final Value<String> welcomeTitle;
   final Value<String> extraLine;
+  final Value<String?> themeKey;
   const AppSettingsCompanion({
     this.id = const Value.absent(),
     this.welcomeTitle = const Value.absent(),
     this.extraLine = const Value.absent(),
+    this.themeKey = const Value.absent(),
   });
   AppSettingsCompanion.insert({
     this.id = const Value.absent(),
     required String welcomeTitle,
     required String extraLine,
+    this.themeKey = const Value.absent(),
   }) : welcomeTitle = Value(welcomeTitle),
        extraLine = Value(extraLine);
   static Insertable<AppSettingsRow> custom({
     Expression<int>? id,
     Expression<String>? welcomeTitle,
     Expression<String>? extraLine,
+    Expression<String>? themeKey,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (welcomeTitle != null) 'welcome_title': welcomeTitle,
       if (extraLine != null) 'extra_line': extraLine,
+      if (themeKey != null) 'theme_key': themeKey,
     });
   }
 
@@ -1830,11 +1878,13 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
     Value<int>? id,
     Value<String>? welcomeTitle,
     Value<String>? extraLine,
+    Value<String?>? themeKey,
   }) {
     return AppSettingsCompanion(
       id: id ?? this.id,
       welcomeTitle: welcomeTitle ?? this.welcomeTitle,
       extraLine: extraLine ?? this.extraLine,
+      themeKey: themeKey ?? this.themeKey,
     );
   }
 
@@ -1850,6 +1900,9 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
     if (extraLine.present) {
       map['extra_line'] = Variable<String>(extraLine.value);
     }
+    if (themeKey.present) {
+      map['theme_key'] = Variable<String>(themeKey.value);
+    }
     return map;
   }
 
@@ -1858,7 +1911,8 @@ class AppSettingsCompanion extends UpdateCompanion<AppSettingsRow> {
     return (StringBuffer('AppSettingsCompanion(')
           ..write('id: $id, ')
           ..write('welcomeTitle: $welcomeTitle, ')
-          ..write('extraLine: $extraLine')
+          ..write('extraLine: $extraLine, ')
+          ..write('themeKey: $themeKey')
           ..write(')'))
         .toString();
   }
@@ -3226,12 +3280,14 @@ typedef $$AppSettingsTableCreateCompanionBuilder =
       Value<int> id,
       required String welcomeTitle,
       required String extraLine,
+      Value<String?> themeKey,
     });
 typedef $$AppSettingsTableUpdateCompanionBuilder =
     AppSettingsCompanion Function({
       Value<int> id,
       Value<String> welcomeTitle,
       Value<String> extraLine,
+      Value<String?> themeKey,
     });
 
 class $$AppSettingsTableFilterComposer
@@ -3255,6 +3311,11 @@ class $$AppSettingsTableFilterComposer
 
   ColumnFilters<String> get extraLine => $composableBuilder(
     column: $table.extraLine,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get themeKey => $composableBuilder(
+    column: $table.themeKey,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -3282,6 +3343,11 @@ class $$AppSettingsTableOrderingComposer
     column: $table.extraLine,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<String> get themeKey => $composableBuilder(
+    column: $table.themeKey,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$AppSettingsTableAnnotationComposer
@@ -3303,6 +3369,9 @@ class $$AppSettingsTableAnnotationComposer
 
   GeneratedColumn<String> get extraLine =>
       $composableBuilder(column: $table.extraLine, builder: (column) => column);
+
+  GeneratedColumn<String> get themeKey =>
+      $composableBuilder(column: $table.themeKey, builder: (column) => column);
 }
 
 class $$AppSettingsTableTableManager
@@ -3339,20 +3408,24 @@ class $$AppSettingsTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String> welcomeTitle = const Value.absent(),
                 Value<String> extraLine = const Value.absent(),
+                Value<String?> themeKey = const Value.absent(),
               }) => AppSettingsCompanion(
                 id: id,
                 welcomeTitle: welcomeTitle,
                 extraLine: extraLine,
+                themeKey: themeKey,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 required String welcomeTitle,
                 required String extraLine,
+                Value<String?> themeKey = const Value.absent(),
               }) => AppSettingsCompanion.insert(
                 id: id,
                 welcomeTitle: welcomeTitle,
                 extraLine: extraLine,
+                themeKey: themeKey,
               ),
           withReferenceMapper: (p0) => p0
               .map((e) => (e.readTable(table), BaseReferences(db, table, e)))

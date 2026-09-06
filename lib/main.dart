@@ -7,7 +7,9 @@ import 'package:window_manager/window_manager.dart';
 import 'app/app.dart';
 import 'data/db/app_database.dart';
 import 'data/db/connection.dart';
+import 'data/repositories/settings_repository.dart';
 import 'providers/database_providers.dart';
+import 'providers/settings_providers.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -18,11 +20,16 @@ Future<void> main() async {
   final storage = await AppStorage.resolve();
   final database = AppDatabase(openConnection(storage.databaseFile));
 
+  // Resolved before runApp so the very first frame already paints in the
+  // shop's chosen theme — see HomeTextNotifier.build for why.
+  final initialHomeText = await SettingsRepository(database).homeText();
+
   runApp(
     ProviderScope(
       overrides: [
         appStorageProvider.overrideWithValue(storage),
         appDatabaseProvider.overrideWithValue(database),
+        initialHomeTextProvider.overrideWithValue(initialHomeText),
       ],
       child: const BeneSnapApp(),
     ),

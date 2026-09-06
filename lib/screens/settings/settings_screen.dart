@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../data/exceptions.dart';
 import '../../data/models/home_text.dart';
+import '../../data/models/home_theme.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/database_providers.dart';
 import '../../services/auth_service.dart';
@@ -29,6 +30,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   final _currentPasswordController = TextEditingController();
   final _newPasswordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
+
+  HomeThemeKey _selectedTheme = defaultHomeThemeKey;
 
   bool _isSavingHomeText = false;
   bool _homeTextSaved = false;
@@ -63,6 +66,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       setState(() {
         _welcomeTitleController.text = raw?.welcomeTitle ?? '';
         _extraLineController.text = raw?.extraLine ?? '';
+        _selectedTheme = raw?.themeKey ?? defaultHomeThemeKey;
       });
     } on AppException {
       // The fields just stay empty; saving still works from a blank slate.
@@ -94,6 +98,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     });
   }
 
+  void _selectTheme(HomeThemeKey theme) {
+    if (theme == _selectedTheme) return;
+    setState(() {
+      _selectedTheme = theme;
+      _homeTextSaved = false;
+    });
+  }
+
   Future<void> _saveHomeText() async {
     if (_isSavingHomeText) return;
 
@@ -108,6 +120,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           .updateHomeText(
             welcomeTitle: _welcomeTitleController.text,
             extraLine: _extraLineController.text,
+            themeKey: _selectedTheme,
           );
       if (!mounted) return;
       setState(() {
@@ -236,17 +249,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 children: [
                   DecoratedBox(
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: theme.colorScheme.surface,
                       shape: BoxShape.circle,
                       border: Border.all(
                         color: tokens.imagePanelBorder,
                         width: 1.5,
                       ),
-                      boxShadow: const [
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x145A4014), // rgba(90,64,20,.08)
+                          color: tokens.shadowColor.withValues(alpha: 0.08),
                           blurRadius: 8,
-                          offset: Offset(0, 2),
+                          offset: const Offset(0, 2),
                         ),
                       ],
                     ),
@@ -376,22 +389,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               onChanged: _handleHomeTextChanged,
             ),
             const SizedBox(height: 16),
+            Text(
+              'لون التطبيق',
+              style: AppTheme.weighted(
+                theme.textTheme.bodyMedium,
+                FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(
+              children: [
+                for (final key in HomeThemeKey.values) ...[
+                  _ThemeSwatch(
+                    themeKey: key,
+                    selected: key == _selectedTheme,
+                    onTap: () => _selectTheme(key),
+                  ),
+                  if (key != HomeThemeKey.values.last)
+                    const SizedBox(width: 12),
+                ],
+              ],
+            ),
+            const SizedBox(height: 16),
             Container(
               width: double.infinity,
               constraints: const BoxConstraints(minHeight: 100),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               decoration: BoxDecoration(
                 borderRadius: const BorderRadius.all(Radius.circular(18)),
-                // Same soft tan-to-tan gradient as the welcome screen's own
-                // background, not the saturated accent `gold` token — this
-                // preview is meant to look like a miniature of that screen.
-                gradient: RadialGradient(
-                  center: const Alignment(0, -0.2),
-                  colors: [
-                    tokens.canvasGradientTop,
-                    theme.colorScheme.secondary,
-                  ],
-                ),
+                color: _selectedTheme.bg,
               ),
               alignment: Alignment.center,
               child: Column(
@@ -424,7 +450,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       _extraLineController.text.trim(),
                       textAlign: TextAlign.center,
                       style: theme.textTheme.bodyMedium?.copyWith(
-                        color: const Color(0xFF7A5E27),
+                        color: _selectedTheme.subtitle,
                       ),
                     ),
                   ],
@@ -441,12 +467,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               child: _isSavingHomeText
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: theme.colorScheme.onPrimary,
                       ),
                     )
                   : const Text('حفظ نصوص الصفحة'),
@@ -546,17 +572,65 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               child: _isUpdatingCredentials
-                  ? const SizedBox(
+                  ? SizedBox(
                       width: 18,
                       height: 18,
                       child: CircularProgressIndicator(
                         strokeWidth: 2,
-                        color: Colors.white,
+                        color: Theme.of(context).colorScheme.onPrimary,
                       ),
                     )
                   : const Text('تحديث بيانات الدخول'),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+/// One colour-theme choice: a solid-fill circle, ringed and checked when
+/// selected. The check icon uses the theme's own [HomeThemeKey.title]
+/// colour rather than a fixed black/white, since that's already tuned for
+/// contrast against that theme's [HomeThemeKey.bg].
+class _ThemeSwatch extends StatelessWidget {
+  const _ThemeSwatch({
+    required this.themeKey,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final HomeThemeKey themeKey;
+  final bool selected;
+  final VoidCallback onTap;
+
+  static const _size = 44.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: themeKey.name,
+      child: InkWell(
+        onTap: onTap,
+        customBorder: const CircleBorder(),
+        child: Container(
+          width: _size,
+          height: _size,
+          alignment: Alignment.center,
+          decoration: BoxDecoration(
+            color: themeKey.bg,
+            shape: BoxShape.circle,
+            border: selected
+                ? Border.all(color: theme.colorScheme.onSurface, width: 2)
+                : null,
+          ),
+          child: selected
+              ? Icon(Icons.check_rounded, size: 18, color: themeKey.title)
+              : null,
         ),
       ),
     );
@@ -575,14 +649,14 @@ class _SettingsCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(26),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         border: Border.all(color: tokens.imagePanelBorder),
         borderRadius: const BorderRadius.all(Radius.circular(22)),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Color(0x145A4014), // rgba(90,64,20,.08)
+            color: tokens.shadowColor.withValues(alpha: 0.08),
             blurRadius: 18,
-            offset: Offset(0, 6),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -616,9 +690,9 @@ class _CardHeader extends StatelessWidget {
             width: 40,
             height: 40,
             alignment: Alignment.center,
-            decoration: const BoxDecoration(
-              color: Color(0xFFF6EFE1),
-              borderRadius: BorderRadius.all(Radius.circular(12)),
+            decoration: BoxDecoration(
+              color: tokens.iconBadgeBg,
+              borderRadius: const BorderRadius.all(Radius.circular(12)),
             ),
             child: Icon(icon, size: 18, color: tokens.goldDeep),
           ),

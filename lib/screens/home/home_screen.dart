@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../data/exceptions.dart';
-import '../../data/models/home_text.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/database_providers.dart';
 import '../../providers/scanner_providers.dart';
@@ -18,7 +17,13 @@ import '../../widgets/scan_indicator.dart';
 /// in). An unrecognised barcode swaps the whole screen to a dedicated
 /// not-found card rather than showing a small inline message.
 class HomeScreen extends ConsumerStatefulWidget {
-  const HomeScreen({super.key});
+  const HomeScreen({super.key, this.initialUnknownBarcode});
+
+  /// Set when arriving here because a barcode scanned *elsewhere* (the
+  /// product detail screen) turned out not to be in the catalogue — shows
+  /// the not-found card immediately instead of the plain welcome view for a
+  /// beat first.
+  final String? initialUnknownBarcode;
 
   @override
   ConsumerState<HomeScreen> createState() => _HomeScreenState();
@@ -26,7 +31,7 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _lookingUp = false;
-  String? _unknownBarcode;
+  late String? _unknownBarcode = widget.initialUnknownBarcode;
   ProviderSubscription<AsyncValue<ScanResult>>? _scanSubscription;
 
   @override
@@ -60,8 +65,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       if (!mounted) return;
 
       if (product != null) {
-        setState(() => _lookingUp = false);
-        await context.pushNamed(
+        // Replace, not push: this screen stays mounted underneath a pushed
+        // route and keeps listening for scans, so a customer scanning again
+        // before the previous product's auto-return delay elapses would
+        // otherwise stack another product detail screen on top instead of
+        // showing it — "back to home" would then only peel off one layer at
+        // a time. Replacing disposes this HomeScreen along with its scan
+        // listener, so a scan mid-display is simply dropped until the kiosk
+        // cycles itself back to a fresh, listening HomeScreen. No
+        // `setState` afterwards: this instance is going away, not merely
+        // covered, so `_lookingUp` no longer matters.
+        context.pushReplacementNamed(
           Routes.productDetail,
           pathParameters: {'id': product.id.toString()},
         );
@@ -98,7 +112,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget build(BuildContext context) {
     final unknownBarcode = _unknownBarcode;
     final isAdmin = ref.watch(isAdminProvider);
-    final homeText = ref.watch(homeTextProvider).value;
+    final homeText = ref.watch(homeTextProvider);
 
     return Scaffold(
       body: SafeArea(
@@ -107,8 +121,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 status: _lookingUp
                     ? ScanIndicatorStatus.lookingUp
                     : ScanIndicatorStatus.listening,
-                welcomeTitle: homeText?.welcomeTitle ?? defaultWelcomeTitle,
-                extraLine: homeText?.extraLine ?? '',
+                welcomeTitle: homeText.welcomeTitle,
+                extraLine: homeText.extraLine,
                 onAccountPressed: _openAccount,
               )
             : _NotFoundView(
@@ -188,21 +202,10 @@ class _WelcomeView extends StatelessWidget {
                       Text(
                         extraLine,
                         textAlign: TextAlign.center,
-                        style:
-                            AppTheme.weighted(
-                              theme.textTheme.headlineSmall,
-                              FontWeight.w500,
-                            ).copyWith(
-                              fontSize: 22,
-                              color: Colors.white.withValues(alpha: 0.92),
-                              shadows: const [
-                                Shadow(
-                                  color: Color(0x38785A23),
-                                  blurRadius: 14,
-                                  offset: Offset(0, 2),
-                                ),
-                              ],
-                            ),
+                        style: AppTheme.weighted(
+                          theme.textTheme.headlineSmall,
+                          FontWeight.w500,
+                        ).copyWith(fontSize: 22, color: tokens.muted),
                       ),
                     ],
                     const SizedBox(height: 52),
@@ -226,16 +229,17 @@ class _AccountButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final tokens = AppTokens.of(context);
 
     return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: Colors.white,
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surface,
         shape: BoxShape.circle,
         boxShadow: [
           BoxShadow(
-            color: Color(0x295A4014), // rgba(90,64,20,.16)
+            color: tokens.shadowColor.withValues(alpha: 0.16),
             blurRadius: 16,
-            offset: Offset(0, 6),
+            offset: const Offset(0, 6),
           ),
         ],
       ),
@@ -273,83 +277,93 @@ class _NotFoundView extends StatelessWidget {
     final tokens = AppTokens.of(context);
 
     return Center(
-      child: Container(
-        width: 520,
-        padding: const EdgeInsets.fromLTRB(40, 44, 40, 36),
-        decoration: BoxDecoration(
-          color: theme.colorScheme.surface,
-          borderRadius: const BorderRadius.all(Radius.circular(26)),
-          boxShadow: const [
-            BoxShadow(
-              color: Color(0x335A4014), // rgba(90,64,20,.2)
-              blurRadius: 50,
-              offset: Offset(0, 20),
-            ),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            DecoratedBox(
-              decoration: const BoxDecoration(
-                color: Color(0xFFF6EFE1),
-                shape: BoxShape.circle,
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(15),
-                child: Icon(
-                  Icons.qr_code_scanner_rounded,
-                  size: 26,
-                  color: tokens.goldDeep,
+      // width: 520 as a hard size, not a cap, would force this off the edge
+      // of a narrower window instead of shrinking to fit; SingleChildScrollView
+      // covers the same "doesn't fit" case vertically, at a larger OS
+      // text-scale setting.
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: 24),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 520),
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(40, 44, 40, 36),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface,
+              borderRadius: const BorderRadius.all(Radius.circular(26)),
+              boxShadow: [
+                BoxShadow(
+                  color: tokens.shadowColor.withValues(alpha: 0.20),
+                  blurRadius: 50,
+                  offset: const Offset(0, 20),
                 ),
-              ),
-            ),
-            const SizedBox(height: 18),
-            // A barcode is Latin/numeric content inside an otherwise Arabic
-            // screen — force LTR so it reads left-to-right regardless of the
-            // ambient RTL direction, matching what staff see printed on the
-            // product's own label.
-            Text(
-              barcode,
-              textDirection: TextDirection.ltr,
-              style: theme.textTheme.titleMedium?.copyWith(
-                fontFamily: 'monospace',
-                fontFamilyFallback: const ['Readex Pro'],
-                letterSpacing: 1.2,
-                height: 1.2,
-              ),
-            ),
-            const SizedBox(height: 8),
-            ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 340),
-              child: Text(
-                'هذا المنتج غير متوفر في الكتالوج حتى الآن.',
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyLarge?.copyWith(
-                  color: tokens.body,
-                  height: 1.6,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 12,
-              runSpacing: 12,
-              children: [
-                ElevatedButton(
-                  onPressed: onScanAgain,
-                  child: const Text('مسح منتج آخر'),
-                ),
-                if (canAdd)
-                  ElevatedButton(
-                    onPressed: onAddProduct,
-                    style: AppTheme.darkButtonStyle(context),
-                    child: const Text('إضافة هذا المنتج'),
-                  ),
               ],
             ),
-          ],
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: tokens.iconBadgeBg,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(15),
+                    child: Icon(
+                      Icons.qr_code_scanner_rounded,
+                      size: 26,
+                      color: tokens.goldDeep,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 18),
+                // A barcode is Latin/numeric content inside an otherwise Arabic
+                // screen — force LTR so it reads left-to-right regardless of the
+                // ambient RTL direction, matching what staff see printed on the
+                // product's own label.
+                Text(
+                  barcode,
+                  textDirection: TextDirection.ltr,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontFamily: 'monospace',
+                    fontFamilyFallback: const ['Readex Pro'],
+                    letterSpacing: 1.2,
+                    height: 1.2,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 340),
+                  child: Text(
+                    'هذا المنتج غير متوفر في الكتالوج حتى الآن.',
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: tokens.body,
+                      height: 1.6,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Wrap(
+                  alignment: WrapAlignment.center,
+                  spacing: 12,
+                  runSpacing: 12,
+                  children: [
+                    ElevatedButton(
+                      onPressed: onScanAgain,
+                      child: const Text('مسح منتج آخر'),
+                    ),
+                    if (canAdd)
+                      ElevatedButton(
+                        onPressed: onAddProduct,
+                        style: AppTheme.darkButtonStyle(context),
+                        child: const Text('إضافة هذا المنتج'),
+                      ),
+                  ],
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );

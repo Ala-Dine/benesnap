@@ -140,16 +140,14 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             color: theme.colorScheme.surface,
             borderRadius: const BorderRadius.all(Radius.circular(999)),
             border: Border.all(
-              color: _searchFocused
-                  ? tokens.borderFocus
-                  : Colors.black.withValues(alpha: 0.06),
+              color: _searchFocused ? tokens.borderFocus : tokens.border,
               width: _searchFocused ? 1.5 : 1,
             ),
             boxShadow: [
-              const BoxShadow(
-                color: Color(0x1A5A4014), // rgba(90,64,20,.10)
+              BoxShadow(
+                color: tokens.shadowColor.withValues(alpha: 0.10),
                 blurRadius: 14,
-                offset: Offset(0, 4),
+                offset: const Offset(0, 4),
               ),
               // The focus ring: a static border alone can't react to
               // focus (the TextField's own InputDecoration owns that),
@@ -213,8 +211,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                               width: 24,
                               height: 24,
                               alignment: Alignment.center,
-                              decoration: const BoxDecoration(
-                                color: Color(0xFFEFE6D4),
+                              decoration: BoxDecoration(
+                                color: tokens.iconBadgeBg,
                                 shape: BoxShape.circle,
                               ),
                               child: Icon(
@@ -289,11 +287,11 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surface,
                       shape: BoxShape.circle,
-                      boxShadow: const [
+                      boxShadow: [
                         BoxShadow(
-                          color: Color(0x1A5A4014), // rgba(90,64,20,.10)
+                          color: tokens.shadowColor.withValues(alpha: 0.10),
                           blurRadius: 14,
-                          offset: Offset(0, 4),
+                          offset: const Offset(0, 4),
                         ),
                       ],
                     ),
@@ -453,7 +451,7 @@ class _EmptyState extends StatelessWidget {
               style: AppTheme.weighted(
                 theme.textTheme.titleLarge,
                 FontWeight.w700,
-              ).copyWith(color: const Color(0xFF46351A), fontSize: 20),
+              ).copyWith(color: tokens.ink, fontSize: 20),
             ),
             const SizedBox(height: 8),
             Text(
@@ -554,13 +552,11 @@ class _ProductCardState extends ConsumerState<_ProductCard> {
                             aspectRatio: 1,
                             child: imagePath == null
                                 ? StripedPlaceholder(
-                                    background: const Color(0xFFF6F1E7),
-                                    stripe: const Color(0xFFEFE7D8),
+                                    background: tokens.imagePanelBg,
+                                    stripe: tokens.imagePanelBorder,
                                     label: 'صورة المنتج',
                                     labelStyle: theme.textTheme.labelSmall
-                                        ?.copyWith(
-                                          color: const Color(0xFFA79470),
-                                        ),
+                                        ?.copyWith(color: tokens.faint),
                                   )
                                 : Image.file(
                                     File(storage.resolveImage(imagePath)),

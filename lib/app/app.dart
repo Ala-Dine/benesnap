@@ -6,6 +6,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../providers/settings_providers.dart';
 import 'router.dart';
 import 'theme.dart';
 
@@ -15,11 +16,16 @@ class BeneSnapApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    // Drives every colour in the app — see AppTheme.forTheme. Always a real,
+    // already-resolved value: `homeTextProvider` is seeded synchronously
+    // from `initialHomeTextProvider` (see HomeTextNotifier.build), so there
+    // is no loading state here to fall back from.
+    final themeKey = ref.watch(homeTextProvider).themeKey;
 
     return MaterialApp.router(
       title: 'BeneSnap',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.light,
+      theme: AppTheme.forTheme(themeKey),
       routerConfig: router,
       // Arabic only — there is no locale switcher, so no reason to also
       // support English.  MaterialApp derives the ambient RTL Directionality

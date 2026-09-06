@@ -1,7 +1,11 @@
 {
   "permissions": {
     "allow": [
-      "Bash(timeout 200 flutter analyze)"
+      "Bash(timeout 200 flutter analyze)",
+      "Bash(python3 *)",
+      "Bash(grep -n 'class $UnknownIngredientsTable' lib/data/db/app_database.g.dart)",
+      "Bash(timeout 500 flutter test test/zz_scratch_probe_test.dart --no-pub -r expanded)",
+      "Bash(timeout 500 flutter test --no-pub)"
     ]
   }
 }
