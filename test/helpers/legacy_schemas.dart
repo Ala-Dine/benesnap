@@ -51,9 +51,12 @@ const _coreDdl = '''
 
 /// The v1 English seed vocabulary, in the order the v1 seed inserted it.
 ///
-/// Position-parallel with [skinSeedLabels]/[hairSeedLabels] — that pairing is
-/// the entire basis of the v1-to-v2 relabel, which matches rows by id order
-/// rather than by text.
+/// Position-parallel with the *leading* entries of
+/// [skinSeedLabels]/[hairSeedLabels] — that pairing is the entire basis of
+/// the v1-to-v2 relabel, which matches rows by id order rather than by text.
+/// Those lists have since grown past this one; the relabel pairs only as far
+/// as the shorter of the two, so the entries added later simply have no v1
+/// counterpart to rename.
 const legacySkinLabels = [
   'Normal',
   'Dry',

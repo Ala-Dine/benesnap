@@ -5,8 +5,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:window_manager/window_manager.dart';
 
 import '../providers/settings_providers.dart';
+import 'platform.dart';
 import 'router.dart';
 import 'theme.dart';
 
@@ -39,7 +41,7 @@ class BeneSnapApp extends ConsumerWidget {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
-      builder: (context, child) => _DebugShortcut(
+      builder: (context, child) => _GlobalShortcuts(
         router: router,
         child: child ?? const SizedBox.shrink(),
       ),
@@ -47,16 +49,26 @@ class BeneSnapApp extends ConsumerWidget {
   }
 }
 
-/// Ctrl+Shift+D opens the hidden scanner diagnostics screen.
-///
-/// Registered above the router so it works from any screen, and deliberately
-/// undocumented in the UI — it is a tuning aid for whoever installs the
-/// scanner, not a feature for shop staff.
-class _DebugShortcut extends StatelessWidget {
-  const _DebugShortcut({required this.router, required this.child});
+/// App-wide keyboard shortcuts that need to work from any screen regardless
+/// of what currently has focus — registered above the router, once, rather
+/// than duplicated per screen.
+class _GlobalShortcuts extends StatelessWidget {
+  const _GlobalShortcuts({required this.router, required this.child});
 
   final GoRouter router;
   final Widget child;
+
+  /// Toggles between the kiosk's default full-screen, chrome-less window and
+  /// an ordinary resizable one — a customer at the counter should see a
+  /// scanner, not a desktop app, but the shop's admin needs a normal window
+  /// to actually edit the catalogue. Mirrors the convention browsers and
+  /// most native apps already use for "toggle full screen," so it needs no
+  /// on-screen hint.
+  Future<void> _toggleFullScreen() async {
+    if (!isDesktopPlatform) return;
+    final isFullScreen = await windowManager.isFullScreen();
+    await windowManager.setFullScreen(!isFullScreen);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -73,6 +85,8 @@ class _DebugShortcut extends StatelessWidget {
           if (location == '/debug/scanner') return;
           unawaited(router.pushNamed(Routes.scannerDebug));
         },
+        const SingleActivator(LogicalKeyboardKey.f11): () =>
+            unawaited(_toggleFullScreen()),
       },
       // An ancestor Focus node catches keys that a focused descendant left
       // unhandled. `autofocus` covers the kiosk screen, where nothing else

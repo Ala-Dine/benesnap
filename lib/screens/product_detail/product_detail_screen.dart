@@ -17,6 +17,7 @@ import '../../providers/product_providers.dart';
 import '../../providers/scanner_providers.dart';
 import '../../services/scanner/scan_event.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/directional_text.dart';
 import '../../widgets/product_image.dart';
 import '../../widgets/striped_placeholder.dart';
 
@@ -348,7 +349,10 @@ class _ProductDetailCard extends ConsumerWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  // Shop-typed text, so nothing pins it to one script — see
+                  // DirectionalText for why inheriting the app's RTL turns
+                  // a brand like "DERMA+" into "+DERMA".
+                  DirectionalText(
                     product.brandName.toUpperCase(),
                     style: AppTheme.weighted(
                       theme.textTheme.labelMedium,
@@ -356,7 +360,7 @@ class _ProductDetailCard extends ConsumerWidget {
                     ).copyWith(color: tokens.gold, letterSpacing: 2),
                   ),
                   const SizedBox(height: 6),
-                  Text(
+                  DirectionalText(
                     product.productName,
                     style: AppTheme.weighted(
                       theme.textTheme.headlineLarge,

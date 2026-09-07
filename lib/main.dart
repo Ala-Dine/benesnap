@@ -1,10 +1,9 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:window_manager/window_manager.dart';
 
 import 'app/app.dart';
+import 'app/platform.dart';
 import 'app/storage_failure_app.dart';
 import 'data/db/app_database.dart';
 import 'data/db/connection.dart';
@@ -38,6 +37,7 @@ Future<void> main() async {
     // the shop stares at an empty window with nothing to report to anyone —
     // the exact outcome opening the database early was meant to avoid.
     runApp(StorageFailureApp(error: error));
+    await _revealWindow();
     return;
   }
 
@@ -53,6 +53,41 @@ Future<void> main() async {
       child: const BeneSnapApp(),
     ),
   );
+
+  await _revealWindow();
+}
+
+/// Puts the window on screen, but not before there is a painted frame in it.
+///
+/// `window_manager` shows the native window the moment it is asked to, and
+/// the first Flutter frame lands a long way after that: resolving storage,
+/// opening the database and running migrations take a few hundred
+/// milliseconds, and building, laying out and rasterizing that first frame —
+/// fonts and all — takes considerably longer still. Measured cold on the
+/// development machine, showing the window up front meant roughly two
+/// seconds of an empty black rectangle before anything appeared in it, which
+/// is a poor look on a shop counter and reads as a crash rather than a
+/// launch.
+///
+/// Waiting for the frame instead means the window appears already painted.
+/// Full screen is set first, while it is still hidden, so it never appears
+/// at its windowed size and then jumps.
+///
+/// The timeout is a deliberate backstop, not defensiveness for its own sake:
+/// if that frame signal never arrives on some platform or driver, a kiosk
+/// that never shows its window at all is far worse than one that shows an
+/// empty one, so it gives up waiting and shows regardless.
+Future<void> _revealWindow() async {
+  if (!isDesktopPlatform) return;
+
+  await WidgetsBinding.instance.waitUntilFirstFrameRasterized.timeout(
+    const Duration(seconds: 5),
+    onTimeout: () {},
+  );
+
+  await windowManager.setFullScreen(true);
+  await windowManager.show();
+  await windowManager.focus();
 }
 
 /// Closes the database on the way out so SQLite checkpoints its
@@ -63,7 +98,7 @@ Future<void> main() async {
 /// while a `-wal` sidecar still holds recent writes is a copy that silently
 /// predates them.
 Future<void> _closeDatabaseOnExit(AppDatabase database) async {
-  if (!_isDesktop) return;
+  if (!isDesktopPlatform) return;
   await windowManager.setPreventClose(true);
   windowManager.addListener(_CloseHandler(database));
 }
@@ -81,10 +116,15 @@ class _CloseHandler extends WindowListener {
   }
 }
 
-/// The kiosk layout assumes a reasonably wide window; below 1000x700 the
-/// two-column product screens stop fitting.
+/// Sizes the window and leaves it hidden — [_revealWindow] shows it once
+/// there is a frame to show.
+///
+/// The size settings are what the window returns to when the admin leaves
+/// full screen with F11 (see app.dart's shortcut): the kiosk layout assumes
+/// a reasonably wide window, and below 1000x700 the two-column product
+/// screens stop fitting.
 Future<void> _configureWindow() async {
-  if (!_isDesktop) return;
+  if (!isDesktopPlatform) return;
 
   await windowManager.ensureInitialized();
 
@@ -96,11 +136,7 @@ Future<void> _configureWindow() async {
     titleBarStyle: TitleBarStyle.normal,
   );
 
-  await windowManager.waitUntilReadyToShow(options, () async {
-    await windowManager.show();
-    await windowManager.focus();
-  });
+  // No callback, so nothing is shown here: `waitUntilReadyToShow` applies
+  // the options and the window stays hidden until asked otherwise.
+  await windowManager.waitUntilReadyToShow(options);
 }
-
-bool get _isDesktop =>
-    Platform.isWindows || Platform.isMacOS || Platform.isLinux;

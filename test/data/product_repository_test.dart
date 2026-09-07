@@ -1,4 +1,5 @@
 import 'package:benesnap/data/db/app_database.dart';
+import 'package:benesnap/data/db/seed.dart';
 import 'package:benesnap/data/exceptions.dart';
 import 'package:benesnap/data/models/product.dart';
 import 'package:benesnap/data/models/suitability_tag.dart';
@@ -316,8 +317,17 @@ void main() {
     test('ship with the skin and hair vocabulary', () async {
       final all = await tags.all();
 
-      expect(all.where((t) => t.category == TagCategory.skin), hasLength(7));
-      expect(all.where((t) => t.category == TagCategory.hair), hasLength(10));
+      // Against the lists rather than literals: the vocabulary is meant to
+      // grow (see seed.dart), and a count baked in here would turn every
+      // addition into a failing test that says nothing about what broke.
+      expect(
+        all.where((t) => t.category == TagCategory.skin),
+        hasLength(skinSeedLabels.length),
+      );
+      expect(
+        all.where((t) => t.category == TagCategory.hair),
+        hasLength(hairSeedLabels.length),
+      );
     });
 
     test('are not duplicated when the database is reopened', () async {

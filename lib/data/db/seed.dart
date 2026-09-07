@@ -3,10 +3,24 @@ import 'app_database.dart';
 
 /// The suitability vocabulary the shop starts with.
 ///
-/// Position-parallel with the v1 English seed this replaced — see
-/// [AppDatabase.migration]'s v1-to-v2 step, which relabels existing rows by
-/// this same order rather than reinserting them.
+/// **Append only — never insert, reorder, or delete an entry.** Position *is*
+/// identity here: [seedSuitabilityTags] records offered slots by index in
+/// [AppDatabase.seededTagOffers], and [AppDatabase.migration]'s v1-to-v2 step
+/// relabels existing rows by this same order rather than by text. Reordering
+/// would relabel a shop's existing tags into the wrong meanings and re-offer
+/// vocabulary it had deliberately deleted; appending is safe, and is how a
+/// later release hands new entries to shops already running.
+///
+/// The leading entries stay position-parallel with the v1 English seed this
+/// replaced (`legacySkinLabels`/`legacyHairLabels` in the tests); everything
+/// past them was added afterwards and has no v1 counterpart.
+///
+/// Deliberately broad rather than minimal: a shop assistant tagging a new
+/// product should almost always find the wording already here, since adding
+/// one costs a detour through the "add tag" field on every product that
+/// needs it.
 const skinSeedLabels = <String>[
+  // The original v1 vocabulary.
   'عادية',
   'جافة',
   'دهنية',
@@ -14,9 +28,19 @@ const skinSeedLabels = <String>[
   'حساسة',
   'معرّضة لحب الشباب',
   'ناضجة',
+  // Added since: the concerns a cosmetics counter actually labels by.
+  'جميع أنواع البشرة',
+  'باهتة',
+  'تصبغات',
+  'احمرار',
+  'مسام واسعة',
+  'تجاعيد',
+  'هالات سوداء',
+  'بشرة الأطفال',
 ];
 
 const hairSeedLabels = <String>[
+  // The original v1 vocabulary.
   'مستقيم',
   'متموج',
   'مجعد',
@@ -27,6 +51,19 @@ const hairSeedLabels = <String>[
   'فروة جافة',
   'مصبوغ',
   'تالف',
+  // Added since. Note the hair/scalp split the original only had for
+  // oiliness and dryness of the *scalp*: a mask for dry lengths and a serum
+  // for a dry scalp are different products, so both now have wording.
+  'جميع أنواع الشعر',
+  'جاف',
+  'دهني',
+  'هايش',
+  'متقصف',
+  'باهت',
+  'قشرة',
+  'تساقط',
+  'فروة حساسة',
+  'معالج كيميائيًا',
 ];
 
 /// Inserts any seed slot that hasn't been offered yet, per

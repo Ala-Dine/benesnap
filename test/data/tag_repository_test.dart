@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:benesnap/data/db/app_database.dart';
+import 'package:benesnap/data/db/seed.dart';
 import 'package:benesnap/data/exceptions.dart';
 import 'package:benesnap/data/models/product.dart';
 import 'package:benesnap/data/models/suitability_tag.dart';
@@ -159,17 +160,36 @@ void main() {
 
         final allTags = await tags.all();
 
-        // Every v1 seed slot survives, now labelled in Arabic.
+        final skinLabels = allTags
+            .where((t) => t.category == TagCategory.skin)
+            .map((t) => t.label)
+            .toList();
+        final hairLabels = allTags
+            .where((t) => t.category == TagCategory.hair)
+            .map((t) => t.label)
+            .toList();
+
+        // Every v1 seed slot survives, now labelled in Arabic — renamed in
+        // place rather than left behind alongside an Arabic copy, which the
+        // no-duplicates check below is what actually pins down.
         expect(
-          allTags.where((t) => t.category == TagCategory.skin),
-          hasLength(7),
+          skinLabels,
+          containsAll(skinSeedLabels.take(legacySkinLabels.length)),
         );
         expect(
-          allTags.where((t) => t.category == TagCategory.hair),
-          hasLength(10),
+          hairLabels,
+          containsAll(hairSeedLabels.take(legacyHairLabels.length)),
         );
-        expect(allTags.map((t) => t.label), contains('جافة'));
+        expect(skinLabels.toSet(), hasLength(skinLabels.length));
+        expect(hairLabels.toSet(), hasLength(hairLabels.length));
         expect(allTags.map((t) => t.label), isNot(contains('Dry')));
+
+        // The same open also hands this shop the vocabulary added after v1:
+        // those slots have no entry in the offers ledger yet, so the seed
+        // inserts them. Counted against the lists rather than a literal, so
+        // appending more later doesn't need this test edited.
+        expect(skinLabels, hasLength(skinSeedLabels.length));
+        expect(hairLabels, hasLength(hairSeedLabels.length));
 
         // The row that was 'Dry' in v1 kept its id, so the product that
         // referenced it still resolves to the (now Arabic) tag.
@@ -201,6 +221,95 @@ void main() {
       final secondCount = await TagRepository(second).all();
 
       expect(secondCount.length, firstCount.length);
+    });
+  });
+
+  // What every already-installed shop does on its next launch when the seed
+  // lists grow: `beforeOpen` reruns the seed, finds slots with no entry in
+  // the offers ledger, and inserts just those.
+  group('growing the seed vocabulary', () {
+    /// Rewinds [db] to the vocabulary as it stood when only the first
+    /// [skinSlots]/[hairSlots] entries existed — tags and ledger both, which
+    /// together are exactly what an older install carries.
+    Future<void> rewindToOlderVocabulary(
+      AppDatabase db, {
+      required int skinSlots,
+      required int hairSlots,
+    }) async {
+      await db.delete(db.suitabilityTags).go();
+      await db.delete(db.seededTagOffers).go();
+
+      Future<void> offer(TagCategory category, List<String> labels) async {
+        for (final (index, label) in labels.indexed) {
+          await db
+              .into(db.suitabilityTags)
+              .insert(
+                SuitabilityTagsCompanion.insert(
+                  label: label,
+                  category: category,
+                ),
+              );
+          await db
+              .into(db.seededTagOffers)
+              .insert(
+                SeededTagOffersCompanion.insert(
+                  category: category,
+                  seedIndex: index,
+                ),
+              );
+        }
+      }
+
+      await offer(TagCategory.skin, skinSeedLabels.take(skinSlots).toList());
+      await offer(TagCategory.hair, hairSeedLabels.take(hairSlots).toList());
+    }
+
+    test('an older install picks up entries added since', () async {
+      final db = createTestDatabase();
+      final tags = TagRepository(db);
+      await rewindToOlderVocabulary(db, skinSlots: 7, hairSlots: 10);
+      final before = await tags.all();
+
+      await seedSuitabilityTags(db);
+
+      // Guards the test itself as much as the seed: were the lists ever
+      // trimmed back to the 7/10 they started at, the rewind above would be
+      // a no-op and every assertion below would pass without the seed having
+      // inserted anything at all.
+      final after = await tags.all();
+      expect(after.length, greaterThan(before.length));
+
+      final labels = after.map((t) => t.label);
+      expect(labels, containsAll(skinSeedLabels));
+      expect(labels, containsAll(hairSeedLabels));
+      expect(labels, hasLength(skinSeedLabels.length + hairSeedLabels.length));
+    });
+
+    test('and does not get a second copy on the launch after that', () async {
+      final db = createTestDatabase();
+      await rewindToOlderVocabulary(db, skinSlots: 7, hairSlots: 10);
+
+      await seedSuitabilityTags(db);
+      await seedSuitabilityTags(db);
+
+      final labels = (await TagRepository(db).all()).map((t) => t.label);
+      expect(labels, hasLength(skinSeedLabels.length + hairSeedLabels.length));
+    });
+
+    test('an entry the shop deleted stays deleted', () async {
+      final db = createTestDatabase();
+      final tags = TagRepository(db);
+      final target = (await tags.all()).firstWhere(
+        (t) => t.label == skinSeedLabels.last,
+      );
+
+      await tags.deleteTag(target.id);
+      await seedSuitabilityTags(db);
+
+      expect(
+        (await tags.all()).map((t) => t.label),
+        isNot(contains(target.label)),
+      );
     });
   });
 }

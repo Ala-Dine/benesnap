@@ -14,6 +14,7 @@ import '../../providers/database_providers.dart';
 import '../../providers/product_providers.dart';
 import '../../widgets/circle_icon_button.dart';
 import '../../widgets/confirm_dialog.dart';
+import '../../widgets/directional_text.dart';
 import '../../widgets/product_image.dart';
 import '../../widgets/striped_placeholder.dart';
 
@@ -623,7 +624,11 @@ class _ProductCardState extends ConsumerState<_ProductCard> {
                   // Content-hugging, not centered in leftover flex space —
                   // the whole card's height (chromeHeightFor)
                   // is already computed to fit exactly this, no more.
-                  Text(
+                  // Shop-typed text in an app that is otherwise RTL — see
+                  // DirectionalText. These three stretch to the card's full
+                  // width, so their alignment has to stay with the card
+                  // rather than follow the string's own direction.
+                  DirectionalText(
                     widget.product.brandName.toUpperCase(),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -635,7 +640,7 @@ class _ProductCardState extends ConsumerState<_ProductCard> {
                     ),
                   ),
                   const SizedBox(height: 3),
-                  Text(
+                  DirectionalText(
                     widget.product.productName,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -645,7 +650,7 @@ class _ProductCardState extends ConsumerState<_ProductCard> {
                     ).copyWith(fontSize: 17, height: 1.3),
                   ),
                   const SizedBox(height: 3),
-                  Text(
+                  DirectionalText(
                     widget.product.firstKeyIngredient,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
