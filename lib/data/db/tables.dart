@@ -3,6 +3,10 @@ import 'package:drift/drift.dart';
 import '../models/home_theme.dart' show HomeThemeKey, defaultHomeThemeKey;
 import '../models/suitability_tag.dart' show TagCategory;
 
+/// Sorted by brand on every read — the catalogue list, the search, and the
+/// live stream feeding the inventory grid all order by it — so it earns an
+/// index rather than a sort per query.
+@TableIndex(name: 'products_brand_name', columns: {#brandName})
 @DataClassName('ProductRow')
 class Products extends Table {
   IntColumn get id => integer().autoIncrement()();
@@ -40,6 +44,13 @@ class SuitabilityTags extends Table {
   ];
 }
 
+/// The composite primary key indexes `(product_id, tag_id)`, which only
+/// helps predicates leading with `product_id`. Two things go the other way
+/// and would otherwise scan the whole join table: counting how many products
+/// carry a tag (shown before confirming a tag delete), and the ON DELETE
+/// CASCADE from `suitability_tags`, which SQLite implements as a child-table
+/// scan per deleted parent row.
+@TableIndex(name: 'product_tags_tag_id', columns: {#tagId})
 @DataClassName('ProductTagRow')
 class ProductTags extends Table {
   IntColumn get productId =>

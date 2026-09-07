@@ -22,6 +22,7 @@ import '../../providers/tag_providers.dart';
 import '../../services/scanner/barcode_scanner_service.dart';
 import '../../widgets/dashed_border_box.dart';
 import '../../widgets/labeled_field.dart';
+import '../../widgets/product_image.dart';
 
 /// Whether the barcode field is empty, holds an unchecked-but-plausible
 /// value, or collides with another product — checked at commit time (Enter
@@ -901,19 +902,9 @@ class _ImageDropZone extends StatelessWidget {
                   )
                 : ClipRRect(
                     borderRadius: radius,
-                    child: Image.file(
-                      File(storage.resolveImage(path)),
-                      fit: BoxFit.cover,
-                      errorBuilder: (context, error, stack) => ColoredBox(
-                        color: tokens.imagePanelBg,
-                        child: Center(
-                          child: Icon(
-                            Icons.broken_image_outlined,
-                            size: 40,
-                            color: tokens.muted,
-                          ),
-                        ),
-                      ),
+                    child: ProductImage(
+                      file: File(storage.resolveImage(path)),
+                      brokenIconSize: 40,
                     ),
                   ),
           ),

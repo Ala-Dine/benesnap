@@ -18,4 +18,15 @@ class HomeText {
   final String welcomeTitle;
   final String extraLine;
   final HomeThemeKey themeKey;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is HomeText &&
+          other.welcomeTitle == welcomeTitle &&
+          other.extraLine == extraLine &&
+          other.themeKey == themeKey;
+
+  @override
+  int get hashCode => Object.hash(welcomeTitle, extraLine, themeKey);
 }

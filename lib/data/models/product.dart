@@ -33,6 +33,43 @@ class Product {
   final DateTime updatedAt;
   final List<SuitabilityTag> tags;
 
+  /// Value equality, so a stream re-emitting an unchanged catalogue doesn't
+  /// read as a change — see `productsStreamProvider`, which relies on it to
+  /// keep the inventory grid from rebuilding on every unrelated write.
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is Product &&
+          other.id == id &&
+          other.barcode == barcode &&
+          other.brandName == brandName &&
+          other.productName == productName &&
+          other.keyIngredients == keyIngredients &&
+          other.coreBenefits == coreBenefits &&
+          other.imagePath == imagePath &&
+          other.createdAt == createdAt &&
+          other.updatedAt == updatedAt &&
+          listEquals(other.tags, tags);
+
+  @override
+  int get hashCode => Object.hash(
+    id,
+    barcode,
+    brandName,
+    productName,
+    keyIngredients,
+    coreBenefits,
+    imagePath,
+    createdAt,
+    updatedAt,
+    Object.hashAll(tags),
+  );
+
+  /// Latin or Arabic comma. Hoisted out of [firstKeyIngredient] because
+  /// that getter runs once per inventory card per rebuild, and a RegExp
+  /// literal in an expression is recompiled every time it is evaluated.
+  static final _ingredientSeparator = RegExp('[,،]');
+
   String get displayName => '$brandName $productName';
 
   List<SuitabilityTag> tagsIn(TagCategory category) =>
@@ -50,7 +87,7 @@ class Product {
   /// Authors separate ingredients with a comma — Arabic (،) or Latin (,),
   /// since both are in ordinary use when typing Arabic text.
   String get firstKeyIngredient =>
-      keyIngredients.split(RegExp('[,،]')).first.trim();
+      keyIngredients.split(_ingredientSeparator).first.trim();
 
   @override
   String toString() => 'Product($id, $barcode, $displayName)';

@@ -108,6 +108,21 @@ void main() {
       expect(product!.tags.single.label, skinSeedLabels[1]);
     });
 
+    test('creates the indexes added in v5', () async {
+      final db = await upgraded(createV3Database);
+      final names =
+          (await db
+                  .customSelect(
+                    "SELECT name FROM sqlite_master WHERE type = 'index'",
+                  )
+                  .get())
+              .map((row) => row.data['name'])
+              .toSet();
+
+      expect(names, contains('products_brand_name'));
+      expect(names, contains('product_tags_tag_id'));
+    });
+
     test('does not re-add the seeded vocabulary', () async {
       final db = await upgraded(createV3Database);
       final tags = await TagRepository(db).all();

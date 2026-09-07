@@ -474,7 +474,20 @@ abstract final class AppTheme {
   /// The app's [ThemeData] for [key] — every colour in the app, including
   /// admin screens, derives from this one call. See [AppTokens.forTheme]
   /// and [_HslShift] for how.
-  static ThemeData forTheme(HomeThemeKey key) {
+  ///
+  /// Cached per key. There are only five, they never change at runtime, and
+  /// building one means a full ColorScheme, ~40 HSL-derived tokens and a
+  /// 15-role TextTheme. Returning the identical instance also matters to
+  /// [AnimatedTheme], which MaterialApp wraps the whole tree in: handed an
+  /// equal-but-not-identical ThemeData it lerps every colour in the app for
+  /// 200ms, so an uncached call turned any settings write into a full-tree
+  /// re-theme.
+  static final _cache = <HomeThemeKey, ThemeData>{};
+
+  static ThemeData forTheme(HomeThemeKey key) =>
+      _cache.putIfAbsent(key, () => _build(key));
+
+  static ThemeData _build(HomeThemeKey key) {
     final tokens = AppTokens.forTheme(key);
     final canvas = key.bg;
 

@@ -20,7 +20,7 @@ class AppDatabase extends _$AppDatabase {
   AppDatabase(super.executor);
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -38,6 +38,12 @@ class AppDatabase extends _$AppDatabase {
         await m.createTable(appSettings);
       } else if (from < 4) {
         await m.addColumn(appSettings, appSettings.themeKey);
+      }
+      if (from < 5) {
+        // Indexes only — no data to move, and createIndex is idempotent
+        // enough here because nothing before v5 created either name.
+        await m.createIndex(productsBrandName);
+        await m.createIndex(productTagsTagId);
       }
     },
     beforeOpen: (details) async {

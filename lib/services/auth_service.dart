@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import 'package:bcrypt/bcrypt.dart';
 
 import '../data/repositories/admin_repository.dart';
@@ -39,8 +41,8 @@ class AuthService {
   }
 
   /// Creates the first (or an additional) admin account with a bcrypt hash.
-  Future<void> createAdmin(String username, String password) {
-    final hash = BCrypt.hashpw(password, BCrypt.gensalt());
+  Future<void> createAdmin(String username, String password) async {
+    final hash = await _hash(password);
     return _admins.create(username: username.trim(), passwordHash: hash);
   }
 
@@ -66,7 +68,7 @@ class AuthService {
     if (newPassword != null && newPassword.isNotEmpty) {
       final failure = await _verify(currentUsername, currentPassword ?? '');
       if (failure != null) return failure;
-      newHash = BCrypt.hashpw(newPassword, BCrypt.gensalt());
+      newHash = await _hash(newPassword);
     }
 
     await _admins.update(
@@ -96,7 +98,7 @@ class AuthService {
     }
 
     final hash = await _admins.passwordHashFor(username.trim());
-    final matches = hash != null && BCrypt.checkpw(password, hash);
+    final matches = hash != null && await _check(password, hash);
 
     if (matches) {
       _failedAttempts.remove(key);
@@ -116,4 +118,14 @@ class AuthService {
 
     return const LoginFailure(LoginFailureReason.invalidCredentials);
   }
+
+  /// bcrypt is deliberately slow — that is the point of it — and both of
+  /// these are synchronous CPU work. On the UI isolate that is a frozen
+  /// window for the whole hash, on every login, first-time setup and
+  /// password change. `Isolate.run` moves it off.
+  static Future<String> _hash(String password) =>
+      Isolate.run(() => BCrypt.hashpw(password, BCrypt.gensalt()));
+
+  static Future<bool> _check(String password, String hash) =>
+      Isolate.run(() => BCrypt.checkpw(password, hash));
 }

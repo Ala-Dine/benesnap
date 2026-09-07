@@ -1931,6 +1931,14 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     this,
   );
   late final $AppSettingsTable appSettings = $AppSettingsTable(this);
+  late final Index productsBrandName = Index(
+    'products_brand_name',
+    'CREATE INDEX products_brand_name ON products (brand_name)',
+  );
+  late final Index productTagsTagId = Index(
+    'product_tags_tag_id',
+    'CREATE INDEX product_tags_tag_id ON product_tags (tag_id)',
+  );
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -1942,6 +1950,8 @@ abstract class _$AppDatabase extends GeneratedDatabase {
     admins,
     seededTagOffers,
     appSettings,
+    productsBrandName,
+    productTagsTagId,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([

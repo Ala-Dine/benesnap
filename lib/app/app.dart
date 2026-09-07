@@ -20,7 +20,9 @@ class BeneSnapApp extends ConsumerWidget {
     // already-resolved value: `homeTextProvider` is seeded synchronously
     // from `initialHomeTextProvider` (see HomeTextNotifier.build), so there
     // is no loading state here to fall back from.
-    final themeKey = ref.watch(homeTextProvider).themeKey;
+    // `select` so editing the welcome *text* doesn't rebuild MaterialApp —
+    // and with it the whole tree — for a theme that hasn't changed.
+    final themeKey = ref.watch(homeTextProvider.select((t) => t.themeKey));
 
     return MaterialApp.router(
       title: 'BeneSnap',

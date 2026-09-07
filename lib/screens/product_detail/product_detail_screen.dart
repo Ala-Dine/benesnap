@@ -16,6 +16,7 @@ import '../../providers/product_providers.dart';
 import '../../providers/scanner_providers.dart';
 import '../../services/scanner/scan_event.dart';
 import '../../widgets/app_card.dart';
+import '../../widgets/product_image.dart';
 import '../../widgets/striped_placeholder.dart';
 
 /// Shown after a successful scan. A product that loads successfully cycles
@@ -237,36 +238,47 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
       child: Scaffold(
         body: Stack(
           children: [
-            SafeArea(
-              // The hero card's content (photo, tags, benefits, ingredients)
-              // can run taller than the window at the app's own enforced
-              // 700px minimum height, or at a larger OS text-scale setting —
-              // neither is hypothetical for a shop's own kiosk hardware.
-              // LayoutBuilder + a min-height ConstrainedBox keeps everything
-              // centered exactly as before when it fits, and lets it scroll
-              // instead of hard-overflowing when it doesn't.
-              child: LayoutBuilder(
-                builder: (context, constraints) => SingleChildScrollView(
-                  padding: const EdgeInsets.all(32),
-                  child: ConstrainedBox(
-                    constraints: BoxConstraints(
-                      minHeight: constraints.maxHeight - 64,
-                    ),
-                    child: Center(
-                      child: productAsync.when(
-                        data: (product) => product == null
-                            ? _StatusCard(
-                                message:
-                                    'هذا المنتج لم يعد موجودًا في الكتالوج.',
-                                onBack: _returnHome,
-                              )
-                            : _ProductDetailCard(product: product),
-                        loading: () => const CircularProgressIndicator(),
-                        error: (error, stack) => _StatusCard(
-                          message: error is AppException
-                              ? error.message
-                              : 'تعذّر تحميل هذا المنتج.',
-                          onBack: _returnHome,
+            // The progress bar below animates for 8 seconds after every
+            // scan, and it is a sibling of this card in the same Stack.
+            // FractionallySizedBox is not a relayout boundary — it takes
+            // loose constraints from RenderStack with parentUsesSize — so
+            // without a boundary here each of those frames marks this
+            // subtree dirty and re-rasterises the whole hero card: a 50px
+            // blur shadow, the decoded photo, and StripedPlaceholder's
+            // CustomPaint. That is the most expensive thing in the app, on
+            // the path it runs on most.
+            RepaintBoundary(
+              child: SafeArea(
+                // The hero card's content (photo, tags, benefits, ingredients)
+                // can run taller than the window at the app's own enforced
+                // 700px minimum height, or at a larger OS text-scale setting —
+                // neither is hypothetical for a shop's own kiosk hardware.
+                // LayoutBuilder + a min-height ConstrainedBox keeps everything
+                // centered exactly as before when it fits, and lets it scroll
+                // instead of hard-overflowing when it doesn't.
+                child: LayoutBuilder(
+                  builder: (context, constraints) => SingleChildScrollView(
+                    padding: const EdgeInsets.all(32),
+                    child: ConstrainedBox(
+                      constraints: BoxConstraints(
+                        minHeight: constraints.maxHeight - 64,
+                      ),
+                      child: Center(
+                        child: productAsync.when(
+                          data: (product) => product == null
+                              ? _StatusCard(
+                                  message:
+                                      'هذا المنتج لم يعد موجودًا في الكتالوج.',
+                                  onBack: _returnHome,
+                                )
+                              : _ProductDetailCard(product: product),
+                          loading: () => const CircularProgressIndicator(),
+                          error: (error, stack) => _StatusCard(
+                            message: error is AppException
+                                ? error.message
+                                : 'تعذّر تحميل هذا المنتج.',
+                            onBack: _returnHome,
+                          ),
                         ),
                       ),
                     ),
@@ -282,12 +294,14 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                 top: 0,
                 start: 0,
                 end: 0,
-                child: AnimatedBuilder(
-                  animation: _autoReturnController,
-                  builder: (context, _) => FractionallySizedBox(
-                    alignment: AlignmentDirectional.centerStart,
-                    widthFactor: 1 - _autoReturnController.value,
-                    child: Container(height: 4, color: tokens.gold),
+                child: RepaintBoundary(
+                  child: AnimatedBuilder(
+                    animation: _autoReturnController,
+                    builder: (context, _) => FractionallySizedBox(
+                      alignment: AlignmentDirectional.centerStart,
+                      widthFactor: 1 - _autoReturnController.value,
+                      child: Container(height: 4, color: tokens.gold),
+                    ),
                   ),
                 ),
               ),
@@ -494,14 +508,10 @@ class _ProductDetailCard extends ConsumerWidget {
                                   labelStyle: theme.textTheme.bodyMedium
                                       ?.copyWith(color: tokens.faint),
                                 )
-                              : Image.file(
-                                  File(storage.resolveImage(imagePath)),
-                                  fit: BoxFit.cover,
-                                  errorBuilder: (context, error, stack) => Icon(
-                                    Icons.broken_image_outlined,
-                                    size: 36,
-                                    color: tokens.muted,
-                                  ),
+                              : ProductImage(
+                                  file: File(storage.resolveImage(imagePath)),
+                                  brokenIconSize: 36,
+                                  fillBrokenBackground: false,
                                 ),
                         ),
                       ),

@@ -10,6 +10,7 @@ import '../../data/exceptions.dart';
 import '../../data/models/product.dart';
 import '../../providers/database_providers.dart';
 import '../../providers/product_providers.dart';
+import '../../widgets/product_image.dart';
 import '../../widgets/striped_placeholder.dart';
 
 /// Admin-only catalogue management: a searchable, responsive grid of
@@ -592,22 +593,8 @@ class _ProductCardState extends ConsumerState<_ProductCard> {
                                     labelStyle: theme.textTheme.labelSmall
                                         ?.copyWith(color: tokens.faint),
                                   )
-                                : Image.file(
-                                    File(storage.resolveImage(imagePath)),
-                                    fit: BoxFit.cover,
-                                    errorBuilder: (context, error, stack) =>
-                                        DecoratedBox(
-                                          decoration: BoxDecoration(
-                                            color: tokens.imagePanelBg,
-                                          ),
-                                          child: Center(
-                                            child: Icon(
-                                              Icons.broken_image_outlined,
-                                              size: 32,
-                                              color: tokens.muted,
-                                            ),
-                                          ),
-                                        ),
+                                : ProductImage(
+                                    file: File(storage.resolveImage(imagePath)),
                                   ),
                           ),
                         ),
