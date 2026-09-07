@@ -31,6 +31,18 @@ void main() {
       expect(await admins.passwordHashFor('owner'), 'a-bcrypt-hash');
     });
 
+    test('rejects a second admin differing only in case', () async {
+      // The unique index is case-sensitive, so without a proactive check
+      // both rows would exist and passwordHashFor could no longer tell them
+      // apart.
+      await admins.create(username: 'Owner', passwordHash: 'hash');
+
+      await expectLater(
+        admins.create(username: 'owner', passwordHash: 'other'),
+        throwsA(isA<DuplicateUsernameException>()),
+      );
+    });
+
     test('rejects a second admin with the same username', () async {
       await admins.create(username: 'owner', passwordHash: 'hash-1');
 
@@ -42,6 +54,17 @@ void main() {
   });
 
   group('passwordHashFor', () {
+    test('finds the account whatever case it is typed in', () async {
+      // The lockout counter in AuthService has always been keyed by the
+      // lowercased name, so a case-sensitive lookup here meant typing
+      // `owner` for an account created as `Owner` could never succeed —
+      // while still counting toward that account's lockout.
+      await admins.create(username: 'Owner', passwordHash: 'hash');
+
+      expect(await admins.passwordHashFor('owner'), 'hash');
+      expect(await admins.passwordHashFor('  OWNER '), 'hash');
+    });
+
     test('null for an unknown username', () async {
       expect(await admins.passwordHashFor('nobody'), isNull);
     });

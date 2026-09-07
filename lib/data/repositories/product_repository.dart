@@ -142,10 +142,22 @@ class ProductRepository {
 
   /// Emits a fresh list whenever the catalogue changes, so the inventory grid
   /// updates itself after an edit in another route.
+  ///
+  /// Declares the tag tables as sources, not just `products`: every emitted
+  /// [Product] carries its tags, and deleting a tag writes
+  /// `suitability_tags` and cascades through `product_tags` without touching
+  /// `products` at all — so a plain `select(products).watch()` went on
+  /// showing a tag that no longer existed until some unrelated product write
+  /// happened to come along. The `SELECT 1` is a trigger, not a result: it
+  /// exists so drift knows which tables to re-run [all] for.
   Stream<List<Product>> watchAll() {
-    final query = _db.select(_db.products)
-      ..orderBy([(p) => OrderingTerm(expression: p.brandName)]);
-    return query.watch().asyncMap(_attachTags);
+    return _db
+        .customSelect(
+          'SELECT 1',
+          readsFrom: {_db.products, _db.productTags, _db.suitabilityTags},
+        )
+        .watch()
+        .asyncMap((_) => all());
   }
 
   /// Rejects a barcode already used by a different product.

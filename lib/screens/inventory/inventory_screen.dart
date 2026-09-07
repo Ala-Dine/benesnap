@@ -31,16 +31,19 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   @override
   void initState() {
     super.initState();
-    _searchFocusNode.addListener(() {
-      if (_searchFocused != _searchFocusNode.hasFocus) {
-        setState(() => _searchFocused = _searchFocusNode.hasFocus);
-      }
-    });
+    _searchFocusNode.addListener(_onSearchFocusChange);
+  }
+
+  void _onSearchFocusChange() {
+    if (_searchFocused != _searchFocusNode.hasFocus) {
+      setState(() => _searchFocused = _searchFocusNode.hasFocus);
+    }
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _searchFocusNode.removeListener(_onSearchFocusChange);
     _searchFocusNode.dispose();
     super.dispose();
   }
@@ -351,6 +354,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 }
 
+/// The grid's own left/right padding. Used both as the padding itself and to
+/// work out how much width is left for the cells, which is why it can't be
+/// written out twice — changing one and not the other silently mis-sizes
+/// every card.
+const _gridHorizontalPadding = 34.0;
+
 class _InventoryGrid extends StatelessWidget {
   const _InventoryGrid({
     required this.products,
@@ -377,7 +386,7 @@ class _InventoryGrid extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final columns = constraints.maxWidth < 1100 ? 3 : 4;
-        const horizontalPadding = 34.0 * 2;
+        const horizontalPadding = _gridHorizontalPadding * 2;
         const gap = 18.0;
         final cellWidth =
             (constraints.maxWidth - horizontalPadding - gap * (columns - 1)) /
@@ -394,12 +403,17 @@ class _InventoryGrid extends StatelessWidget {
         // exactly the dead strip that showed up at the bottom of the card.
         final imageWidth = cardWidth - _ProductCard.imageHorizontalPadding;
         return GridView.builder(
-          padding: const EdgeInsets.fromLTRB(34, 4, 34, 30),
+          padding: const EdgeInsets.fromLTRB(
+            _gridHorizontalPadding,
+            4,
+            _gridHorizontalPadding,
+            30,
+          ),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: columns,
             mainAxisSpacing: 18,
             crossAxisSpacing: 18,
-            mainAxisExtent: imageWidth + _ProductCard.chromeHeight,
+            mainAxisExtent: imageWidth + _ProductCard.chromeHeightFor(context),
           ),
           itemCount: products.length,
           itemBuilder: (context, index) => Center(
@@ -500,12 +514,26 @@ class _ProductCard extends ConsumerStatefulWidget {
   /// before using the card's width to predict the image's height.
   static const imageHorizontalPadding = 28.0;
 
-  /// Fixed vertical chrome around the square image: 14px padding top and
-  /// bottom, a 12px gap, and three single-line text rows. The grid adds
-  /// this to the image's own (width-derived) height to get a fixed
-  /// `mainAxisExtent` up front, so this stays in hand-computed sync with
-  /// the paddings/gaps/font sizes below.
-  static const chromeHeight = 100.0;
+  /// Vertical chrome around the square image: 14px padding top and bottom,
+  /// a 12px gap, and three single-line text rows. The grid adds this to the
+  /// image's own (width-derived) height to get a fixed `mainAxisExtent` up
+  /// front, so it stays in hand-computed sync with the paddings/gaps/font
+  /// sizes below.
+  ///
+  /// The text rows are scaled by [TextScaler] rather than assumed: a shop
+  /// running its OS at a larger accessibility text size makes all three
+  /// taller at once, and a fixed extent would then overflow in every card
+  /// in the grid simultaneously.
+  static double chromeHeightFor(BuildContext context) {
+    const fixed = 14.0 + 14.0 + 12.0;
+    final scaler = MediaQuery.textScalerOf(context);
+    final rows = [
+      12.0,
+      17.0,
+      12.0,
+    ].map((size) => scaler.scale(size) * 1.3).reduce((a, b) => a + b);
+    return fixed + rows;
+  }
 
   @override
   ConsumerState<_ProductCard> createState() => _ProductCardState();
@@ -610,7 +638,7 @@ class _ProductCardState extends ConsumerState<_ProductCard> {
                     ),
                     const SizedBox(height: 12),
                     // Content-hugging, not centered in leftover flex space —
-                    // the whole card's height (_ProductCard.chromeHeight)
+                    // the whole card's height (chromeHeightFor)
                     // is already computed to fit exactly this, no more.
                     Text(
                       widget.product.brandName.toUpperCase(),

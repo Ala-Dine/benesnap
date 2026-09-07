@@ -324,6 +324,27 @@ void main() {
   });
 
   group('watchAll', () {
+    test('emits again when a tag the catalogue uses is deleted', () async {
+      // Deleting a tag writes suitability_tags and cascades through
+      // product_tags without touching products at all, so a stream watching
+      // only products kept handing out a Product still carrying the deleted
+      // tag until some unrelated write came along.
+      final tag = (await tags.all()).first;
+      await products.create(draft(tagIds: {tag.id}));
+
+      final emissions = <List<Product>>[];
+      final subscription = products.watchAll().listen(emissions.add);
+      addTearDown(subscription.cancel);
+      await pumpEventQueue();
+
+      expect(emissions.last.single.tags, hasLength(1));
+
+      await tags.deleteTag(tag.id);
+      await pumpEventQueue();
+
+      expect(emissions.last.single.tags, isEmpty);
+    });
+
     test('emits again when a product is added', () async {
       final emissions = <List<Product>>[];
       final sub = products.watchAll().listen(emissions.add);

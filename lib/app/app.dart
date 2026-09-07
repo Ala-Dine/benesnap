@@ -64,8 +64,13 @@ class _DebugShortcut extends StatelessWidget {
           LogicalKeyboardKey.keyD,
           control: true,
           shift: true,
-        ): () =>
-            unawaited(router.pushNamed(Routes.scannerDebug)),
+        ): () {
+          // Held down, this fires on every repeat — without the check the
+          // stack ends up N debug screens deep and needs N escapes back.
+          final location = router.state.uri.path;
+          if (location == '/debug/scanner') return;
+          unawaited(router.pushNamed(Routes.scannerDebug));
+        },
       },
       // An ancestor Focus node catches keys that a focused descendant left
       // unhandled. `autofocus` covers the kiosk screen, where nothing else

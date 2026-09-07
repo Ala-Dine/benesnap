@@ -305,7 +305,16 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
 
   Future<void> _deleteTag(SuitabilityTag tag) async {
     final repo = ref.read(tagRepositoryProvider);
-    final count = await repo.productCountForTag(tag.id);
+    final int count;
+    try {
+      count = await repo.productCountForTag(tag.id);
+    } on AppException catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+      return;
+    }
     if (!mounted) return;
 
     final confirmed = await showDialog<bool>(
@@ -338,6 +347,9 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
 
     try {
       await repo.deleteTag(tag.id);
+      // `use_build_context_synchronously` doesn't cover setState, so this
+      // one has to be guarded by hand like every other await in this file.
+      if (!mounted) return;
       setState(() => _selectedTagIds.remove(tag.id));
     } on AppException catch (e) {
       if (!mounted) return;
@@ -989,14 +1001,20 @@ class _ChipGroupState extends State<_ChipGroup> {
   @override
   void initState() {
     super.initState();
-    _focus.addListener(() {
-      if (!_focus.hasFocus && _adding) _commit();
-    });
+    _focus.addListener(_onFocusChange);
+  }
+
+  void _onFocusChange() {
+    if (!_focus.hasFocus && _adding) _commit();
   }
 
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_handleKey);
+    // Before the node is disposed: disposing a FocusNode drops its focus,
+    // which fires this listener, which would then commit a half-typed label
+    // as a brand new tag on the way out.
+    _focus.removeListener(_onFocusChange);
     _controller.dispose();
     _focus.dispose();
     super.dispose();
@@ -1019,6 +1037,7 @@ class _ChipGroupState extends State<_ChipGroup> {
   }
 
   void _commit() {
+    if (!mounted) return;
     HardwareKeyboard.instance.removeHandler(_handleKey);
     final label = _controller.text.trim();
     _controller.clear();
