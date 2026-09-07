@@ -272,6 +272,21 @@ void main() {
   });
 
   group('delete', () {
+    test('hands back the image filename so the caller can delete the '
+        'file too', () async {
+      // The row is the only record of which file belonged to this product,
+      // so once it is gone nothing else can work that out — the delete has
+      // to report it on the way past or the file is orphaned forever.
+      final created = await products.create(draft(imagePath: 'img_123_ab.png'));
+
+      expect(await products.delete(created.id), 'img_123_ab.png');
+    });
+
+    test('hands back null for a product that never had an image', () async {
+      final created = await products.create(draft());
+      expect(await products.delete(created.id), isNull);
+    });
+
     test('removes the product', () async {
       final created = await products.create(draft());
 

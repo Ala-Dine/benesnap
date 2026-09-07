@@ -121,11 +121,23 @@ class ProductRepository {
     return updated;
   }, barcode: draft.barcode);
 
-  Future<void> delete(int id) => _guard(() async {
-    final removed = await (_db.delete(
-      _db.products,
-    )..where((p) => p.id.equals(id))).go();
-    if (removed == 0) throw const ProductNotFoundException();
+  /// Deletes the product and returns the `imagePath` it was holding, so the
+  /// caller can remove the file too.
+  ///
+  /// The row and the file are owned together but stored apart — the database
+  /// only ever keeps a filename — so nothing else can work out afterwards
+  /// which file belonged to a row that no longer exists. Reading it inside
+  /// the same transaction as the delete is what makes the pair reliable.
+  Future<String?> delete(int id) => _guard(() async {
+    return _db.transaction(() async {
+      final row = await (_db.select(
+        _db.products,
+      )..where((p) => p.id.equals(id))).getSingleOrNull();
+      if (row == null) throw const ProductNotFoundException();
+
+      await (_db.delete(_db.products)..where((p) => p.id.equals(id))).go();
+      return row.imagePath;
+    });
   });
 
   /// Emits a fresh list whenever the catalogue changes, so the inventory grid

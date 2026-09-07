@@ -274,9 +274,9 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
       }
       if (!mounted) return;
       setState(() => _imagePath = newPath);
-    } catch (_) {
+    } on AppException catch (e) {
       if (!mounted) return;
-      setState(() => _errorText = 'تعذّر استخدام هذه الصورة. جرّب ملفًا آخر.');
+      setState(() => _errorText = e.message);
     }
   }
 
@@ -389,6 +389,11 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
 
       if (_isEditing) {
         await repo.update(widget.product!.id, draft);
+        // `productByIdProvider` caches for the app's lifetime, so without
+        // this the next screen to read this id — including this same form,
+        // reopened — would serve the values from before the edit and let a
+        // save write them straight back over the newer ones.
+        ref.invalidate(productByIdProvider(widget.product!.id));
       } else {
         await repo.create(draft);
       }
@@ -443,11 +448,23 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
     if (confirmed != true || !mounted) return;
 
     try {
-      await ref.read(productRepositoryProvider).delete(product.id);
-      if (!mounted) return;
-      // The product row itself is gone, so there is nothing left to compare
-      // the image path against — skip the orphaned-image cleanup path.
+      final store = ref.read(imageStoreProvider);
+      final removedImage = await ref
+          .read(productRepositoryProvider)
+          .delete(product.id);
+      ref.invalidate(productByIdProvider(product.id));
+
+      // Both the product's own image and anything staged this session are
+      // now unreferenced. `_saved` then skips the dispose-time cleanup,
+      // which has nothing left to compare against.
+      await store.deleteImage(removedImage);
+      final staged = _imagePath;
+      if (staged != null && staged != removedImage) {
+        await store.deleteImage(staged);
+      }
       _saved = true;
+
+      if (!mounted) return;
       context.pop();
     } on AppException catch (e) {
       if (!mounted) return;

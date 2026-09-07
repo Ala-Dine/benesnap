@@ -96,7 +96,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     if (confirmed != true || !mounted) return;
 
     try {
-      await ref.read(productRepositoryProvider).delete(product.id);
+      final removedImage = await ref
+          .read(productRepositoryProvider)
+          .delete(product.id);
+      ref.invalidate(productByIdProvider(product.id));
+      // Nothing references this file any more, and nothing else knows which
+      // file the deleted row was pointing at.
+      await ref.read(imageStoreProvider).deleteImage(removedImage);
     } on AppException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(

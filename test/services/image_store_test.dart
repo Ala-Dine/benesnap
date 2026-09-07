@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:benesnap/data/db/connection.dart';
+import 'package:benesnap/data/exceptions.dart';
 import 'package:benesnap/services/image_store.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as p;
@@ -24,6 +25,30 @@ void main() {
   });
 
   group('importImage', () {
+    test('a dotted directory name is not mistaken for an extension', () async {
+      // A real path this happens on: /home/someone/photos.2024/scan.
+      // Scanning the whole path for the last '.' yields '.2024/scan', and
+      // the copy then lands in a directory that doesn't exist.
+      final dotted = Directory(p.join(tempDir.path, 'photos.2024'))
+        ..createSync();
+      final noExtension = File(p.join(dotted.path, 'scan'))
+        ..writeAsBytesSync([9]);
+
+      final filename = await images.importImage(noExtension.path);
+
+      expect(filename, isNot(contains('/')));
+      expect(await File(storage.resolveImage(filename)).exists(), isTrue);
+    });
+
+    test('an unreadable source is reported as an AppException', () async {
+      // Never a raw FileSystemException: exceptions.dart's whole contract is
+      // that nothing the screen catches carries a raw exception string.
+      await expectLater(
+        images.importImage(p.join(tempDir.path, 'does_not_exist.png')),
+        throwsA(isA<ImageException>()),
+      );
+    });
+
     test('copies the file into the images directory', () async {
       final filename = await images.importImage(sourceFile.path);
 
@@ -62,6 +87,19 @@ void main() {
   });
 
   group('deleteImage', () {
+    test('never throws, even when the file cannot be removed', () async {
+      // ProductFormScreen calls this from dispose() as a fire-and-forget
+      // future, where a rejection has nowhere to go but the root zone.
+      // A directory standing where the file should be is the cheapest way
+      // to make the delete actually fail.
+      Directory(storage.resolveImage('img_locked.png')).createSync();
+      Directory(
+        p.join(storage.resolveImage('img_locked.png'), 'child'),
+      ).createSync();
+
+      await expectLater(images.deleteImage('img_locked.png'), completes);
+    });
+
     test('removes an existing image', () async {
       final filename = await images.importImage(sourceFile.path);
       final stored = File(storage.resolveImage(filename));

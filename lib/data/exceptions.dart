@@ -72,6 +72,17 @@ class AdminNotFoundException extends AppException {
   String get message => 'تعذّر العثور على حساب المشرف الحالي.';
 }
 
+/// A picked image couldn't be copied into the app's own `images/` folder —
+/// an unreadable file, a full disk, a path that isn't really an image.
+class ImageException extends AppException {
+  const ImageException(this.cause);
+
+  final Object cause;
+
+  @override
+  String get message => 'تعذّر استخدام هذه الصورة. جرّب ملفًا آخر.';
+}
+
 /// Anything unexpected from the storage layer. The underlying error is kept in
 /// [cause] for logging but never shown.
 class StorageException extends AppException {
