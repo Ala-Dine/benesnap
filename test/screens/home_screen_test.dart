@@ -286,6 +286,118 @@ void main() {
       expect(router.routerDelegate.currentConfiguration.matches, hasLength(1));
     },
   );
+
+  testWidgets(
+    'two products swept past the reader before the first lookup returns '
+    'only navigate once',
+    (tester) async {
+      final db = AppDatabase(NativeDatabase.memory());
+      addTearDown(db.close);
+      final repository = _CountingRepository(db);
+      await ProductRepository(db).create(
+        const ProductDraft(
+          barcode: 'A0001',
+          brandName: 'BrandA',
+          productName: 'ProductA',
+          keyIngredients: 'Water',
+          coreBenefits: 'Shine',
+        ),
+      );
+      await ProductRepository(db).create(
+        const ProductDraft(
+          barcode: 'B0002',
+          brandName: 'BrandB',
+          productName: 'ProductB',
+          keyIngredients: 'Oil',
+          coreBenefits: 'Softness',
+        ),
+      );
+
+      final tempDir = Directory.systemTemp.createTempSync('benesnap_home3_');
+      addTearDown(() => tempDir.deleteSync(recursive: true));
+
+      final scanner = BarcodeScannerService();
+      addTearDown(scanner.dispose);
+
+      final router = GoRouter(
+        initialLocation: '/',
+        routes: [
+          GoRoute(
+            path: '/',
+            name: Routes.home,
+            builder: (context, state) =>
+                HomeScreen(initialUnknownBarcode: state.extra as String?),
+          ),
+          GoRoute(
+            path: '/product/:id',
+            name: Routes.productDetail,
+            builder: (context, state) => ProductDetailScreen(
+              productId: int.parse(state.pathParameters['id']!),
+            ),
+          ),
+        ],
+      );
+      addTearDown(router.dispose);
+
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            appDatabaseProvider.overrideWithValue(db),
+            appStorageProvider.overrideWithValue(AppStorage(tempDir)),
+            productRepositoryProvider.overrideWithValue(repository),
+            barcodeScannerProvider.overrideWithValue(scanner),
+            staticHomeTextOverride(
+              const HomeText(
+                welcomeTitle: defaultWelcomeTitle,
+                extraLine: '',
+                themeKey: HomeThemeKey.sand,
+              ),
+            ),
+          ],
+          child: MaterialApp.router(
+            theme: AppTheme.light,
+            routerConfig: router,
+            locale: const Locale('ar'),
+            supportedLocales: const [Locale('ar')],
+            localizationsDelegates: const [
+              GlobalMaterialLocalizations.delegate,
+              GlobalWidgetsLocalizations.delegate,
+              GlobalCupertinoLocalizations.delegate,
+            ],
+          ),
+        ),
+      );
+      await tester.pump();
+
+      // Both in the same frame: a customer can sweep two items past the
+      // reader well inside one 50ms lookup.
+      _scan(scanner, 'A0001');
+      _scan(scanner, 'B0002');
+
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 20));
+      }
+
+      expect(tester.takeException(), isNull);
+      expect(repository.lookups, 1);
+      expect(router.routerDelegate.currentConfiguration.matches, hasLength(1));
+    },
+  );
+}
+
+/// A repository that counts barcode lookups and takes long enough for a
+/// second scan to arrive mid-flight.
+class _CountingRepository extends ProductRepository {
+  _CountingRepository(super.db);
+
+  int lookups = 0;
+
+  @override
+  Future<Product?> findByBarcode(String barcode) async {
+    lookups++;
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    return super.findByBarcode(barcode);
+  }
 }
 
 /// Types [barcode] followed by Enter, mirroring what the HID scanner does

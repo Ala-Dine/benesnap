@@ -54,9 +54,34 @@ class BarcodeScannerService {
   /// Every observed keystroke with its inter-key gap. Feeds the debug screen.
   Stream<KeystrokeSample> get keystrokes => _keystrokes.stream;
 
-  /// While false, keystrokes are ignored entirely. The admin add/edit form
-  /// switches this off so typing a barcode by hand isn't mistaken for a scan.
-  bool enabled = true;
+  /// While false, keystrokes are ignored entirely.
+  ///
+  /// Read-only: suppression is reference-counted through [suspend] rather
+  /// than assigned, because more than one screen can want it off at once.
+  bool get enabled => _suspensions == 0;
+
+  int _suspensions = 0;
+
+  /// Stops this service broadcasting scans until the returned callback runs.
+  ///
+  /// The admin add/edit form holds one of these for as long as it is open,
+  /// so typing or scanning a barcode into its own field isn't also picked up
+  /// as a catalogue lookup somewhere else. It is counted rather than a plain
+  /// flag because the form can stack a second copy of itself (editing the
+  /// product a duplicate barcode collides with): a bare `enabled = true` in
+  /// the inner one's dispose would un-suppress while the outer one is still
+  /// open.
+  ///
+  /// Calling the returned callback more than once is harmless.
+  VoidCallback suspend() {
+    _suspensions++;
+    var released = false;
+    return () {
+      if (released) return;
+      released = true;
+      _suspensions--;
+    };
+  }
 
   /// Characters buffered so far. Exposed for the debug screen.
   String get buffer => _buffer.toString();

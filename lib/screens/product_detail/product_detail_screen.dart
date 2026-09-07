@@ -39,15 +39,24 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
 
 class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
     with SingleTickerProviderStateMixin {
+  /// The backstop for the states [_autoReturnDelay] never covers.
+  ///
+  /// Worth being precise about, because it looks like dead code and isn't:
+  /// the auto-return below only starts once a product actually loads (see
+  /// `_maybeStartAutoReturn`, called with `next.value`). On the success
+  /// path this timer is therefore always cancelled by the dispose that
+  /// follows the auto-return, and never fires. What it does cover is a
+  /// screen showing the "no longer in the catalogue" or load-failure card:
+  /// there is no countdown there, so without this an unattended counter
+  /// would sit on an error message until someone noticed.
   static const _inactivityTimeout = Duration(seconds: 60);
 
   /// How long a *successfully shown* product stays on screen before the
   /// kiosk cycles itself back to "امسح الكود" for the next customer.
   ///
-  /// Unlike [_inactivityTimeout] — a long backstop that only guards against
-  /// the screen being left open (and resets on any activity) — this one is
-  /// short and unconditional: the whole point is that nobody has to touch
-  /// anything for the kiosk to be ready for the next scan.
+  /// Short and unconditional, unlike [_inactivityTimeout]: the whole point
+  /// is that nobody has to touch anything for the kiosk to be ready for the
+  /// next scan.
   static const _autoReturnDelay = Duration(seconds: 8);
 
   Timer? _inactivityTimer;
@@ -82,8 +91,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
     _scanSubscription = ref.listenManual<AsyncValue<ScanResult>>(
       scanStreamProvider,
       (previous, next) {
-        final result = next.value;
-        if (result != null) _handleScan(result);
+        // AsyncData only — see HomeScreen's listener for why reading
+        // `next.value` would re-navigate to the previous code on an error.
+        if (next is AsyncData<ScanResult>) _handleScan(next.value);
       },
     );
   }

@@ -128,6 +128,7 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
   // throws on `ref.read`/`ref.watch` at that point. The service itself is a
   // stable singleton, so holding a direct reference is safe to mutate later.
   late final BarcodeScannerService _scanner;
+  late final VoidCallback _releaseScanner;
 
   bool get _isEditing => widget.product != null;
 
@@ -142,12 +143,13 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
     // The barcode field is meant to be filled by a scan; disable the global
     // listener so a scan here doesn't also trigger a lookup elsewhere while
     // this form is open.
-    _scanner = ref.read(barcodeScannerProvider)..enabled = false;
+    _scanner = ref.read(barcodeScannerProvider);
+    _releaseScanner = _scanner.suspend();
   }
 
   @override
   void dispose() {
-    _scanner.enabled = true;
+    _releaseScanner();
     if (!_saved) _cleanupOrphanedImage();
     _barcodeFocus.removeListener(_onBarcodeFocusChange);
     _barcodeFocus.dispose();

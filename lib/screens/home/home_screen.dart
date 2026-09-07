@@ -40,8 +40,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     _scanSubscription = ref.listenManual<AsyncValue<ScanResult>>(
       scanStreamProvider,
       (previous, next) {
-        final result = next.value;
-        if (result != null) _handleScan(result);
+        // Matched on AsyncData rather than read through `next.value`: an
+        // AsyncError keeps the previous value, so reading it would hand the
+        // *last* scanned code back as if it had just been scanned again and
+        // navigate a second time.
+        if (next is AsyncData<ScanResult>) {
+          _handleScan(next.value);
+        } else if (next is AsyncError) {
+          _reportScannerFault();
+        }
       },
     );
   }
@@ -52,7 +59,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
+  /// A faulted scan stream means the counter has quietly stopped scanning,
+  /// which nothing else on this screen would show.
+  void _reportScannerFault() {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('تعذّر تشغيل الماسح. أعد تشغيل التطبيق.'),
+        duration: Duration(days: 1),
+      ),
+    );
+  }
+
   Future<void> _handleScan(ScanResult result) async {
+    // A customer can sweep two products past the reader faster than the
+    // first lookup returns. Without this, both continuations reach
+    // pushReplacementNamed — this screen isn't disposed synchronously by the
+    // first one, so the second still sees `mounted` and replaces again.
+    if (_lookingUp) return;
+
     setState(() {
       _lookingUp = true;
       _unknownBarcode = null;

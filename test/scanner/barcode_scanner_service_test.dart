@@ -195,9 +195,9 @@ void main() {
     );
   });
 
-  group('enabled flag', () {
-    test('suppresses emission while disabled', () async {
-      scanner.enabled = false;
+  group('suspension', () {
+    test('suppresses emission while suspended', () async {
+      scanner.suspend();
       type(
         '5901234123457',
         gap: const Duration(milliseconds: 5),
@@ -208,14 +208,40 @@ void main() {
       expect(emitted, isEmpty);
     });
 
-    test('resumes cleanly once re-enabled', () async {
-      scanner.enabled = false;
+    test('a nested suspension keeps it suspended until both release', () async {
+      // The add/edit form can stack a second copy of itself when a barcode
+      // collides with an existing product. A bare boolean flag let the
+      // inner one's dispose re-enable scanning while the outer form was
+      // still open, so a scan into its barcode field also fired a
+      // catalogue lookup underneath.
+      final releaseOuter = scanner.suspend();
+      final releaseInner = scanner.suspend();
+
+      releaseInner();
+      expect(scanner.enabled, isFalse);
+
+      releaseOuter();
+      expect(scanner.enabled, isTrue);
+    });
+
+    test('releasing twice does not un-suspend an outstanding hold', () async {
+      final release = scanner.suspend();
+      scanner.suspend();
+
+      release();
+      release();
+
+      expect(scanner.enabled, isFalse);
+    });
+
+    test('resumes cleanly once released', () async {
+      final release = scanner.suspend();
       type(
         'IGNORED',
         gap: const Duration(milliseconds: 5),
         then: LogicalKeyboardKey.enter,
       );
-      scanner.enabled = true;
+      release();
       type(
         '5901234123457',
         gap: const Duration(milliseconds: 5),
