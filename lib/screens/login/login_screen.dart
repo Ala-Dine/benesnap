@@ -23,8 +23,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordFocus = FocusNode();
 
   String? _errorText;
+
+  /// The live lockout countdown. A ValueNotifier rather than plain state
+  /// because it changes once a second and only one Text reads it: a
+  /// setState per tick rebuilt both fields and repainted the card's 56px
+  /// blur shadow to change a single number.
+  final _lockoutRemaining = ValueNotifier<Duration?>(null);
   bool _isSubmitting = false;
-  Duration? _lockoutRemaining;
   Timer? _lockoutTicker;
 
   @override
@@ -33,15 +38,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     _passwordController.dispose();
     _passwordFocus.dispose();
     _lockoutTicker?.cancel();
+    _lockoutRemaining.dispose();
     super.dispose();
   }
 
-  bool get _isLocked => _lockoutRemaining != null;
+  bool get _isLocked => _lockoutRemaining.value != null;
 
-  String? get _displayError {
-    final remaining = _lockoutRemaining;
-    if (remaining != null) {
-      return 'محاولات كثيرة جدًا. حاول مرة أخرى بعد ${remaining.inSeconds} ثانية.';
+  String? _displayError(Duration? lockoutRemaining) {
+    if (lockoutRemaining != null) {
+      return 'محاولات كثيرة جدًا. حاول مرة أخرى بعد '
+          '${lockoutRemaining.inSeconds} ثانية.';
     }
     return _errorText;
   }
@@ -85,16 +91,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   void _startLockoutCountdown(Duration remaining) {
     _lockoutTicker?.cancel();
-    setState(() => _lockoutRemaining = remaining);
+    // Entering and leaving the lockout disable and re-enable the fields and
+    // the submit button, so those two transitions do need a full rebuild.
+    // The seconds in between don't: they only change the message.
+    setState(() => _lockoutRemaining.value = remaining);
 
     _lockoutTicker = Timer.periodic(const Duration(seconds: 1), (timer) {
       final next =
-          (_lockoutRemaining ?? Duration.zero) - const Duration(seconds: 1);
+          (_lockoutRemaining.value ?? Duration.zero) -
+          const Duration(seconds: 1);
       if (next <= Duration.zero) {
         timer.cancel();
-        setState(() => _lockoutRemaining = null);
+        setState(() => _lockoutRemaining.value = null);
       } else {
-        setState(() => _lockoutRemaining = next);
+        _lockoutRemaining.value = next;
       }
     });
   }
@@ -111,7 +121,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final tokens = AppTokens.of(context);
-    final error = _displayError;
     final fieldsEnabled = !_isSubmitting && !_isLocked;
 
     return Scaffold(
@@ -200,15 +209,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           onSubmitted: (_) => _submit(),
                           enabled: fieldsEnabled,
                         ),
-                        if (error != null) ...[
-                          const SizedBox(height: 12),
-                          Text(
-                            error,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.error,
-                            ),
-                          ),
-                        ],
+                        ValueListenableBuilder<Duration?>(
+                          valueListenable: _lockoutRemaining,
+                          builder: (context, remaining, _) {
+                            final error = _displayError(remaining);
+                            if (error == null) return const SizedBox.shrink();
+                            return Padding(
+                              padding: const EdgeInsets.only(top: 12),
+                              child: Text(
+                                error,
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.error,
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                         const SizedBox(height: 16),
                         SizedBox(
                           width: double.infinity,

@@ -30,13 +30,18 @@ class ProductRepository {
     return _attachTags(rows);
   });
 
-  Future<Product?> findById(int id) => _guard(() async {
+  Future<Product?> findById(int id) => _guard(() => _findById(id));
+
+  /// The unguarded body of [findById], for callers already inside `_guard`
+  /// (and, in [create]/[update], inside a transaction that must not be
+  /// unwound by a nested guard).
+  Future<Product?> _findById(int id) async {
     final row = await (_db.select(
       _db.products,
     )..where((p) => p.id.equals(id))).getSingleOrNull();
     if (row == null) return null;
     return (await _attachTags([row])).first;
-  });
+  }
 
   /// The scan path. [barcode] is expected to be normalized already.
   Future<Product?> findByBarcode(String barcode) => _guard(() async {
@@ -70,7 +75,10 @@ class ProductRepository {
   Future<Product> create(ProductDraft draft) => _guard(() async {
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    final id = await _db.transaction(() async {
+    // The read-back happens inside the transaction. Outside it, a concurrent
+    // delete between the insert and the read made a write that had actually
+    // succeeded report ProductNotFoundException.
+    return _db.transaction(() async {
       await _assertBarcodeFree(draft.barcode);
       final newId = await _db
           .into(_db.products)
@@ -87,18 +95,18 @@ class ProductRepository {
             ),
           );
       await _replaceTags(newId, draft.tagIds);
-      return newId;
-    });
 
-    final created = await findById(id);
-    if (created == null) throw const ProductNotFoundException();
-    return created;
+      final created = await _findById(newId);
+      if (created == null) throw const ProductNotFoundException();
+      return created;
+    });
   }, barcode: draft.barcode);
 
   Future<Product> update(int id, ProductDraft draft) => _guard(() async {
     final now = DateTime.now().millisecondsSinceEpoch;
 
-    await _db.transaction(() async {
+    // Read back inside the transaction, for the same reason as create.
+    return _db.transaction(() async {
       await _assertBarcodeFree(draft.barcode, excludingId: id);
       final changed =
           await (_db.update(_db.products)..where((p) => p.id.equals(id))).write(
@@ -114,11 +122,11 @@ class ProductRepository {
           );
       if (changed == 0) throw const ProductNotFoundException();
       await _replaceTags(id, draft.tagIds);
-    });
 
-    final updated = await findById(id);
-    if (updated == null) throw const ProductNotFoundException();
-    return updated;
+      final updated = await _findById(id);
+      if (updated == null) throw const ProductNotFoundException();
+      return updated;
+    });
   }, barcode: draft.barcode);
 
   /// Deletes the product and returns the `imagePath` it was holding, so the

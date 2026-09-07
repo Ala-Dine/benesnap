@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../app/theme.dart';
 import '../../data/exceptions.dart';
 import '../../providers/auth_providers.dart';
+import '../../providers/database_providers.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/labeled_field.dart';
 
@@ -70,6 +71,9 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
 
     try {
       await ref.read(authServiceProvider).createAdmin(username, password);
+      // The router caches this answer; creating the first admin is the one
+      // moment in the app's life that changes it.
+      ref.invalidate(hasAdminProvider);
       if (!mounted) return;
       ref.read(authSessionProvider.notifier).signIn(username);
       context.go('/inventory');

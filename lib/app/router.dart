@@ -44,7 +44,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       // No admin exists yet: the login screen isn't useful until one does,
       // and vice versa once it does.
       if (location == '/login' || location == '/setup') {
-        final hasAdmin = !(await ref.read(adminRepositoryProvider).isEmpty());
+        final hasAdmin = await ref.read(hasAdminProvider.future);
         if (!hasAdmin && location == '/login') return '/setup';
         if (hasAdmin && location == '/setup') return '/login';
       }

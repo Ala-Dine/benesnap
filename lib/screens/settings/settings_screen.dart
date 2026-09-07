@@ -143,16 +143,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
   }
 
-  // Also the live preview and character counter's rebuild trigger — both
-  // read the controllers directly rather than through a Listenable, so
-  // every keystroke needs a setState regardless of whether the "saved" flag
-  // was actually set.
-  void _handleHomeTextChanged(String _) =>
-      setState(() => _homeTextSaved = false);
+  /// The counter and the live preview listen to the controllers directly
+  /// (see the ListenableBuilders below), so typing doesn't need a rebuild of
+  /// this screen at all — which matters here more than usual, because the
+  /// two cards sit inside an IntrinsicHeight and every layout of them costs
+  /// an extra intrinsic-height walk of both scrollable subtrees.
+  ///
+  /// The one thing that does need a rebuild is clearing the "saved"
+  /// confirmation, and only on the first keystroke after a save.
+  void _handleHomeTextChanged(String _) {
+    if (_homeTextSaved) setState(() => _homeTextSaved = false);
+  }
 
-  // Same setState requirement as _handleHomeTextChanged: the counter and
-  // live preview read the controller directly, and setting .text
-  // programmatically doesn't reliably fire TextField's onChanged.
+  // Setting `.text` programmatically doesn't fire TextField's onChanged,
+  // but it does notify the controller — so the counter and preview update
+  // themselves. The setState here is only for the saved flag.
   void _resetWelcomeTitleToDefault() {
     setState(() {
       _welcomeTitleController.text = defaultWelcomeTitle;
@@ -429,10 +434,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(
-                    '${_welcomeTitleController.text.length} / $_maxTitleChars حرفًا',
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: tokens.faint,
+                  ListenableBuilder(
+                    listenable: _welcomeTitleController,
+                    builder: (context, _) => Text(
+                      '${_welcomeTitleController.text.length} / '
+                      '$_maxTitleChars حرفًا',
+                      style: theme.textTheme.labelSmall?.copyWith(
+                        color: tokens.faint,
+                      ),
                     ),
                   ),
                   TextButton(
@@ -492,41 +501,47 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 color: _selectedTheme.bg,
               ),
               alignment: Alignment.center,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    _welcomeTitleController.text.trim().isEmpty
-                        ? defaultWelcomeTitle
-                        : _welcomeTitleController.text,
-                    textAlign: TextAlign.center,
-                    style:
-                        AppTheme.weighted(
-                          theme.textTheme.titleLarge,
-                          FontWeight.w700,
-                        ).copyWith(
-                          fontSize: 24,
-                          color: Colors.white,
-                          shadows: const [
-                            Shadow(
-                              color: Color(0x47785A23),
-                              blurRadius: 10,
-                              offset: Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                  ),
-                  if (_extraLineController.text.trim().isNotEmpty) ...[
-                    const SizedBox(height: 6),
+              child: ListenableBuilder(
+                listenable: Listenable.merge([
+                  _welcomeTitleController,
+                  _extraLineController,
+                ]),
+                builder: (context, _) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                     Text(
-                      _extraLineController.text.trim(),
+                      _welcomeTitleController.text.trim().isEmpty
+                          ? defaultWelcomeTitle
+                          : _welcomeTitleController.text,
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: _selectedTheme.subtitle,
-                      ),
+                      style:
+                          AppTheme.weighted(
+                            theme.textTheme.titleLarge,
+                            FontWeight.w700,
+                          ).copyWith(
+                            fontSize: 24,
+                            color: Colors.white,
+                            shadows: const [
+                              Shadow(
+                                color: Color(0x47785A23),
+                                blurRadius: 10,
+                                offset: Offset(0, 2),
+                              ),
+                            ],
+                          ),
                     ),
+                    if (_extraLineController.text.trim().isNotEmpty) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        _extraLineController.text.trim(),
+                        textAlign: TextAlign.center,
+                        style: theme.textTheme.bodyMedium?.copyWith(
+                          color: _selectedTheme.subtitle,
+                        ),
+                      ),
+                    ],
                   ],
-                ],
+                ),
               ),
             ),
             const SizedBox(height: 16),

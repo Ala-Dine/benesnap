@@ -32,6 +32,18 @@ final adminRepositoryProvider = Provider<AdminRepository>(
   (ref) => AdminRepository(ref.watch(appDatabaseProvider)),
 );
 
+/// Whether any admin account exists — the router's "is setup still needed?"
+/// question.
+///
+/// Cached rather than queried per navigation: the router's redirect ran
+/// `AdminRepository.isEmpty()` on every trip to `/login` or `/setup`, making
+/// each of those transitions wait on a database round trip for an answer
+/// that changes exactly once in the app's lifetime. Invalidated by the setup
+/// screen when it creates that first account.
+final hasAdminProvider = FutureProvider<bool>(
+  (ref) async => !await ref.watch(adminRepositoryProvider).isEmpty(),
+);
+
 final settingsRepositoryProvider = Provider<SettingsRepository>(
   (ref) => SettingsRepository(ref.watch(appDatabaseProvider)),
 );

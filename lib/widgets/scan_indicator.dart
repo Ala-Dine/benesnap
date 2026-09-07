@@ -28,31 +28,43 @@ class ScanIndicator extends StatelessWidget {
         borderRadius: const BorderRadius.all(Radius.circular(26)),
         boxShadow: tokens.prominentShadow,
       ),
-      child: Center(
-        child: isListening
-            ? Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  _BarcodeFrameIcon(
-                    width: 112,
-                    height: 66,
-                    color: theme.colorScheme.onSurface,
+      // The spinner state is around 70px shorter than the listening one, so
+      // the card — and the whole centred column around it — used to jump up
+      // and snap back on every scan. AnimatedSize eases that change instead
+      // of guessing a fixed height the text has to fit inside; the switcher
+      // cross-fades the contents across it.
+      child: AnimatedSize(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        child: Center(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 180),
+            child: isListening
+                ? Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _BarcodeFrameIcon(
+                        width: 112,
+                        height: 66,
+                        color: theme.colorScheme.onSurface,
+                      ),
+                      const SizedBox(height: 14),
+                      Text(
+                        'امسح الكود',
+                        style: AppTheme.weighted(
+                          theme.textTheme.headlineSmall,
+                          FontWeight.w700,
+                        ).copyWith(fontSize: 30),
+                      ),
+                    ],
+                  )
+                : const SizedBox(
+                    width: 48,
+                    height: 48,
+                    child: CircularProgressIndicator(strokeWidth: 3),
                   ),
-                  const SizedBox(height: 14),
-                  Text(
-                    'امسح الكود',
-                    style: AppTheme.weighted(
-                      theme.textTheme.headlineSmall,
-                      FontWeight.w700,
-                    ).copyWith(fontSize: 30),
-                  ),
-                ],
-              )
-            : const SizedBox(
-                width: 48,
-                height: 48,
-                child: CircularProgressIndicator(strokeWidth: 3),
-              ),
+          ),
+        ),
       ),
     );
   }
