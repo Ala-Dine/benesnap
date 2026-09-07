@@ -15,8 +15,14 @@ immediately shows its key ingredients, core benefits, and which skin/hair
 types it suits. That's **kiosk mode** — no login, always on. A staff member
 can tap an account icon, log in, and get **admin mode** — a searchable
 inventory grid where they can add, edit, or delete products, including a
-photo and a set of skin/hair suitability tags. Both modes are the same app;
-what you see depends on whether an admin is signed in.
+photo and a set of skin/hair suitability tags, plus a settings screen for the
+kiosk's welcome text and colour theme. Both modes are the same app; what you
+see depends on whether an admin is signed in.
+
+The whole interface is **Arabic, right-to-left**. There is no language
+switcher, so `MaterialApp.locale` is pinned to `ar` and every user-facing
+string is written in Arabic in the source. The one exception is the hidden
+scanner diagnostics screen (§4), which is for whoever installs the hardware.
 
 ---
 
@@ -37,7 +43,7 @@ building this:
 
 - **Testability.** `ProductRepository` can be tested against a real in-memory
   database with no Flutter widgets involved at all (see
-  `test/data/product_repository_test.dart` — 30-some tests, zero pixels).
+  `test/data/product_repository_test.dart` — dozens of tests, zero pixels).
 - **A single place to translate errors.** A raw SQLite "UNIQUE constraint
   failed" is meaningless to a shop assistant. The repository is the one place
   that catches it and rethrows `DuplicateBarcodeException("Barcode 590... is
@@ -61,7 +67,7 @@ data" folder (e.g. `%APPDATA%\benesnap` on Windows). Right next to the
 database file is an `images/` folder holding every product photo. Back up
 that whole folder and you have the entire shop's catalogue.
 
-### The four tables
+### The six tables
 
 **`products`** — the catalogue itself.
 
@@ -79,6 +85,7 @@ that whole folder and you have the entire shop's catalogue.
 The `barcode` column has a **unique index**. That's not a nicety — it's what
 makes "scan → exact match → show the product" work at all. If two products
 could share a barcode, a scan wouldn't know which one you meant.
+`brand_name` is indexed too, because every read of the catalogue sorts by it.
 
 **`suitability_tags`** — the fixed vocabulary of skin/hair types. Seeded once
 on first launch with 7 skin types (normal, dry, oily, combination, sensitive,
@@ -92,8 +99,19 @@ columns together are the primary key) linking products to however many tags
 apply. Deleting a product cascades and removes its tag links automatically
 (`onDelete: KeyAction.cascade`) — no orphaned rows to clean up by hand.
 
-**`admins`** — one row per staff login. `username` is unique; `password_hash`
-is a bcrypt hash, never the plaintext password (see §5).
+**`admins`** — one row per staff login. `username` is unique and matched
+case-insensitively; `password_hash` is a bcrypt hash, never the plaintext
+password (see §5).
+
+**`seeded_tag_offers`** — an append-only note of which seed vocabulary slots
+have already been offered. This is what lets a shop delete a seeded tag and
+have it stay deleted, while a tag added in a later release still reaches an
+existing installation.
+
+**`app_settings`** — exactly one row (id fixed at 1), holding the shop's
+welcome title, its optional extra line, and the key of its chosen colour
+theme. Absent until the shop saves something for the first time, at which
+point `SettingsRepository` falls back to defaults.
 
 ### How a lookup actually happens
 
@@ -104,8 +122,9 @@ is a bcrypt hash, never the plaintext password (see §5).
    encode a product page URL instead of a bare code).
 3. `ProductRepository.findByBarcode('AB12CD')` runs `SELECT ... WHERE
    barcode = ?` against the unique index — an instant, exact match.
-4. Found → push the product detail screen. Not found → show the code inline
-   with "This product isn't in the catalogue yet."
+4. Found → replace the current screen with the product detail. Not found →
+   show the code inline with a "not in the catalogue yet" card, and an
+   admin-only shortcut into the add form with the barcode prefilled.
 
 ---
 
@@ -144,13 +163,19 @@ the exact gap before it, colour-highlighting any gap that exceeded the
 threshold, so whoever installs the scanner at the shop can watch real scans
 happen and tune the numbers to match their actual device.
 
-One more detail: the service has an `enabled` flag. The add/edit product form
-switches it off while open — otherwise, scanning a barcode to fill that
-form's barcode field would *also* be picked up by whatever's listening to the
-global scan stream elsewhere (e.g. triggering a stray "product not found"
-popup on the kiosk screen underneath). Turning the flag off doesn't stop the
-scanner's keystrokes from reaching the text field — that happens at a lower
-level than this flag — it only stops the *service itself* from broadcasting.
+One more detail: the service can be **suspended**. The add/edit product form
+holds a suspension for as long as it is open — otherwise, scanning a barcode
+to fill that form's barcode field would *also* be picked up by whatever's
+listening to the global scan stream elsewhere (e.g. triggering a stray
+"product not found" popup on the kiosk screen underneath). Suspending doesn't
+stop the scanner's keystrokes from reaching the text field — that happens at a
+lower level — it only stops the *service itself* from broadcasting.
+
+`suspend()` returns a release callback and is reference-counted rather than
+being a plain on/off flag, because the form can stack a second copy of itself:
+if a barcode collides with an existing product, you can jump straight to
+editing that one. With a boolean, the inner form's dispose re-enabled scanning
+while the outer form was still open.
 
 ---
 
@@ -208,11 +233,12 @@ router won't even build the screen if the rule says no.
 | Screen | Route | What it does |
 |---|---|---|
 | Home | `/` | The kiosk landing screen. Listens for scans; shows a pulsing "scan" indicator, a spinner during lookup, and the account icon top-right. |
-| Product detail | `/product/:id` | Shown after a successful scan. Escape, the back arrow, or **60 seconds of no activity** (mouse, keyboard, anything) return to Home — so an unattended counter resets itself for the next customer. |
+| Product detail | `/product/:id` | Shown after a successful scan. Returns to Home on its own after **8 seconds**, with a draining bar along the top so the customer can see it coming; Escape returns immediately. A separate 60-second inactivity timer covers the cases where that countdown never starts — the "no longer in the catalogue" and load-failure cards — so an unattended counter still resets itself. |
 | Login | `/login` | Username/password, rate-limited as above. |
 | Setup | `/setup` | One-time first-admin creation. |
 | Inventory | `/inventory` | Admin only. A grid of product cards plus a "+" tile; a search box filters by brand, product name, or barcode as you type; right-click, long-press, or a small delete icon removes a product (with a confirmation dialog first). |
 | Add/edit product | `/inventory/new`, `/inventory/:id/edit` | Same screen, two modes. Barcode/brand/product name are required and the barcode must be unique (checked before saving, with a clear inline message if it collides). Warns before discarding unsaved changes. The image can be clicked-to-browse or dragged straight onto the drop zone. |
+| Settings | `/inventory/settings` | Admin only. The kiosk's welcome title and extra line, a five-way colour theme picker with a live preview, and the admin's own username and password. Warns before discarding unsaved changes, exactly like the product form. |
 | Scanner debug | `/debug/scanner` (hidden) | Ctrl+Shift+D from anywhere. See §4. |
 
 ---
@@ -242,7 +268,22 @@ they're all hand-written, but simple:
   `productsStreamProvider` wraps `ProductRepository.watchAll()`, a drift
   *stream* query — so the inventory grid re-renders automatically the moment
   a product is added or deleted anywhere in the app, with no manual refresh
-  logic anywhere.
+  logic anywhere. It is `distinct`, and `Product` has value equality, because
+  that stream also fires on tag-table writes that usually leave the list
+  unchanged.
+  `productByIdProvider` is the exception to "no manual refresh": it caches for
+  the app's lifetime, so the screens that write a product invalidate it by
+  hand. Without that, reopening an edit form served the values from before the
+  edit — and saving wrote them back over the newer ones.
+- **`settings_providers.dart`** — `homeTextProvider`, the shop's welcome text
+  and theme. It is a `Notifier` rather than a `StreamProvider` for one
+  specific reason, written out at the top of the file: a stream's first
+  emission always lands a frame *after* the widget reading it first builds, so
+  the app would paint one frame in the default theme and then flash to the
+  shop's. Instead `main()` reads the row once before `runApp` and the notifier
+  starts from that value, subscribing to the live stream only for later
+  changes. `test/app/app_test.dart` asserts the very first frame is already
+  correct.
 
 ---
 
@@ -253,8 +294,22 @@ place: `AppTheme.light` in `lib/app/theme.dart`. No widget hardcodes a
 colour. The palette itself wasn't guessed — it was sampled pixel-by-pixel
 from the five mockup PNGs in `UI\UX/` (the background/pill/border tan is
 `#E9D1A6` in every single mockup; cards are pure white; placeholder text is
-`#B1B2B5`). The font is Quicksand via `google_fonts`, matching the rounded
-style in the mockups.
+`#B1B2B5`).
+
+Since then the palette became **shop-selectable**: `HomeThemeKey`
+(`lib/data/models/home_theme.dart`) holds five presets — sand, blush, sage,
+vanilla, sky — each just three colours (background, title, subtitle). Everything
+else in the app is derived from those by HSL shift in `AppTheme.forTheme`, so
+picking a theme in settings restyles the admin screens too, not only the kiosk.
+The stored value is the key's *name* (`"sand"`), never raw hex, so the palette
+can be retuned later without touching a shop's saved data.
+
+Corner radii live in `AppRadii` rather than in the theme extension, because
+they don't vary by theme — a radius has nothing to lerp.
+
+The font is **Readex Pro**, bundled as one variable font file and declared at
+four weights in `pubspec.yaml`. It covers Arabic, and bundling it means a
+kiosk never needs the network to render its own text.
 
 ---
 
@@ -267,6 +322,12 @@ flutter run -d windows   # or -d linux / -d macos
 ```
 
 ```bash
+dart format --output=none --set-exit-if-changed lib test
 flutter analyze   # should report zero issues
-flutter test      # 71 tests: scanner timing, normalizer, repository CRUD, auth lockout
+flutter test      # scanner timing, normalizer, repository CRUD, schema
+                  # migrations, auth lockout, and widget tests for every
+                  # screen a shop actually uses
 ```
+
+All three run in CI on every push and pull request — see
+`.github/workflows/ci.yml`.
