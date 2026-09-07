@@ -14,6 +14,8 @@ import '../screens/product_form/product_form_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/setup/setup_screen.dart';
 
+const _invalidLink = 'هذا الرابط غير صالح.';
+
 abstract final class Routes {
   static const home = 'home';
   static const login = 'login';
@@ -73,16 +75,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         name: Routes.productDetail,
         builder: (context, state) {
           final id = int.tryParse(state.pathParameters['id'] ?? '');
-          if (id == null) {
-            return Scaffold(
-              body: Center(
-                child: Text(
-                  "That link isn't valid.",
-                  style: Theme.of(context).textTheme.titleLarge,
-                ),
-              ),
-            );
-          }
+          if (id == null) return _messageScreen(context, _invalidLink);
           return ProductDetailScreen(productId: id);
         },
       ),
@@ -102,16 +95,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             name: Routes.productEdit,
             builder: (context, state) {
               final id = int.tryParse(state.pathParameters['id'] ?? '');
-              if (id == null) {
-                return Scaffold(
-                  body: Center(
-                    child: Text(
-                      "That link isn't valid.",
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                );
-              }
+              if (id == null) return _messageScreen(context, _invalidLink);
               return ProductFormScreen(productId: id);
             },
           ),
@@ -131,18 +115,32 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state) => const ScannerDebugScreen(),
       ),
     ],
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(
+    errorBuilder: (context, state) =>
+        _messageScreen(context, 'هذه الصفحة غير موجودة.'),
+  );
+});
+
+bool _isAdminRoute(String location) => location.startsWith('/inventory');
+
+/// The two "you can't get there" screens.
+///
+/// Both used to be hardcoded English inside the route table, in an app that
+/// pins `Locale('ar')` and has no language switcher — so a shop assistant who
+/// somehow reached one got a sentence they couldn't read.
+Widget _messageScreen(BuildContext context, String message) {
+  return Scaffold(
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(40),
         child: Text(
-          "That screen doesn't exist.",
+          message,
+          textAlign: TextAlign.center,
           style: Theme.of(context).textTheme.titleLarge,
         ),
       ),
     ),
   );
-});
-
-bool _isAdminRoute(String location) => location.startsWith('/inventory');
+}
 
 /// Bridges Riverpod auth changes into the [Listenable] go_router expects, so
 /// signing in or out re-runs the redirect immediately.

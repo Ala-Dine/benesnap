@@ -6,6 +6,7 @@ import '../../app/theme.dart';
 import '../../data/exceptions.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/database_providers.dart';
+import '../../widgets/primary_action_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/labeled_field.dart';
 
@@ -198,29 +199,11 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                           ),
                         ],
                         const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton(
-                            onPressed: _isSubmitting ? null : _submit,
-                            style: AppTheme.darkButtonStyle(
-                              context,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(13),
-                                ),
-                              ),
-                            ),
-                            child: _isSubmitting
-                                ? SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: theme.colorScheme.onPrimary,
-                                    ),
-                                  )
-                                : const Text('إنشاء الحساب'),
-                          ),
+                        PrimaryActionButton(
+                          label: 'إنشاء الحساب',
+                          busy: _isSubmitting,
+                          fillWidth: true,
+                          onPressed: _submit,
                         ),
                       ],
                     ),

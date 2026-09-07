@@ -4,9 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/navigation.dart';
 import '../../app/theme.dart';
 import '../../providers/auth_providers.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/primary_action_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/labeled_field.dart';
 
@@ -109,13 +111,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
   }
 
-  void _goBack() {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/');
-    }
-  }
+  void _goBack() => context.popOr('/');
 
   @override
   Widget build(BuildContext context) {
@@ -228,26 +224,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         const SizedBox(height: 16),
                         SizedBox(
                           width: double.infinity,
-                          child: ElevatedButton(
+                          child: PrimaryActionButton(
+                            label: 'تسجيل الدخول',
+                            busy: _isSubmitting,
                             onPressed: fieldsEnabled ? _submit : null,
-                            style: AppTheme.darkButtonStyle(
-                              context,
-                              shape: const RoundedRectangleBorder(
-                                borderRadius: BorderRadius.all(
-                                  Radius.circular(13),
-                                ),
-                              ),
-                            ),
-                            child: _isSubmitting
-                                ? SizedBox(
-                                    width: 18,
-                                    height: 18,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: theme.colorScheme.onPrimary,
-                                    ),
-                                  )
-                                : const Text('تسجيل الدخول'),
                           ),
                         ),
                         const SizedBox(height: 16),

@@ -20,7 +20,9 @@ import '../../providers/product_providers.dart';
 import '../../providers/scanner_providers.dart';
 import '../../providers/tag_providers.dart';
 import '../../services/scanner/barcode_scanner_service.dart';
+import '../../widgets/primary_action_button.dart';
 import '../../widgets/dashed_border_box.dart';
+import '../../widgets/confirm_dialog.dart';
 import '../../widgets/labeled_field.dart';
 import '../../widgets/product_image.dart';
 
@@ -318,33 +320,16 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
     }
     if (!mounted) return;
 
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('حذف الوسم "${tag.label}"؟'),
-        content: Text(
-          count == 0
-              ? 'لن يتأثر أي منتج بهذا الحذف.'
-              : 'هذا الوسم مستخدم في $count ${count == 1 ? 'منتج' : 'منتجات'}. '
-                    'سيُزال منها جميعًا.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTokens.of(context).dangerBg,
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
+    final confirmed = await confirmDestructive(
+      context,
+      title: 'حذف الوسم "${tag.label}"؟',
+      message: count == 0
+          ? 'لن يتأثر أي منتج بهذا الحذف.'
+          : 'هذا الوسم مستخدم في $count ${count == 1 ? 'منتج' : 'منتجات'}. '
+                'سيُزال منها جميعًا.',
+      confirmLabel: 'حذف',
     );
-    if (confirmed != true || !mounted) return;
+    if (!confirmed || !mounted) return;
 
     try {
       await repo.deleteTag(tag.id);
@@ -429,38 +414,10 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
     }
   }
 
-  /// Same confirmation copy as the inventory grid's own delete action, so a
-  /// shop assistant sees identical wording regardless of which screen they
-  /// deleted from.
   Future<void> _deleteProduct() async {
     final product = widget.product;
     if (product == null) return;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('حذف هذا المنتج؟'),
-        content: Text(
-          'سيتم حذف "${product.displayName}" من الكتالوج. '
-          'لا يمكن التراجع عن هذا الإجراء.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTokens.of(context).dangerBg,
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true || !mounted) return;
+    if (!await confirmDeleteProduct(context, product) || !mounted) return;
 
     try {
       final store = ref.read(imageStoreProvider);
@@ -491,28 +448,14 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
 
   Future<void> _cancel() async {
     if (_hasUnsavedChanges) {
-      final discard = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('تجاهل التغييرات؟'),
-          content: const Text('ستفقد ما أدخلته في هذا النموذج.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('متابعة التعديل'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTokens.of(context).dangerBg,
-                foregroundColor: Theme.of(context).colorScheme.error,
-              ),
-              child: const Text('تجاهل'),
-            ),
-          ],
-        ),
+      final discard = await confirmDestructive(
+        context,
+        title: 'تجاهل التغييرات؟',
+        message: 'ستفقد ما أدخلته في هذا النموذج.',
+        confirmLabel: 'تجاهل',
+        cancelLabel: 'متابعة التعديل',
       );
-      if (discard != true) return;
+      if (!discard) return;
     }
     if (!mounted) return;
     context.pop();
@@ -806,26 +749,10 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
                           child: const Text('إلغاء'),
                         ),
                         const SizedBox(width: 12),
-                        ElevatedButton(
-                          onPressed: _isSaving ? null : _save,
-                          style: AppTheme.darkButtonStyle(
-                            context,
-                            shape: const RoundedRectangleBorder(
-                              borderRadius: BorderRadius.all(
-                                Radius.circular(13),
-                              ),
-                            ),
-                          ),
-                          child: _isSaving
-                              ? SizedBox(
-                                  width: 18,
-                                  height: 18,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2,
-                                    color: theme.colorScheme.onPrimary,
-                                  ),
-                                )
-                              : Text(_isEditing ? 'حفظ' : 'إضافة'),
+                        PrimaryActionButton(
+                          label: _isEditing ? 'حفظ' : 'إضافة',
+                          busy: _isSaving,
+                          onPressed: _save,
                         ),
                       ],
                     ),

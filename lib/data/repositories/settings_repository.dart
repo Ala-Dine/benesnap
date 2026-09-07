@@ -4,6 +4,7 @@ import '../db/app_database.dart';
 import '../exceptions.dart';
 import '../models/home_text.dart';
 import '../models/home_theme.dart';
+import 'storage_guard.dart';
 
 /// The shop's customizable kiosk homepage text — a single row (id fixed at
 /// 1), absent until the shop saves it for the first time.
@@ -30,16 +31,12 @@ class SettingsRepository {
 
   /// One-shot read, resolved for display (falls back to the default
   /// welcome text when nothing has been customized yet).
-  Future<HomeText> homeText() async {
-    try {
-      final row = await (_db.select(
-        _db.appSettings,
-      )..where((s) => s.id.equals(_rowId))).getSingleOrNull();
-      return _toHomeText(row);
-    } catch (e) {
-      throw StorageException(e);
-    }
-  }
+  Future<HomeText> homeText() => guardStorage(() async {
+    final row = await (_db.select(
+      _db.appSettings,
+    )..where((s) => s.id.equals(_rowId))).getSingleOrNull();
+    return _toHomeText(row);
+  });
 
   /// The raw stored row, or null if the shop has never customized anything.
   ///
@@ -48,45 +45,37 @@ class SettingsRepository {
   /// form as if the shop had already typed that text. The form needs to
   /// know the difference between "never customized" (show empty fields)
   /// and "customized to something that happens to match the fallback".
-  Future<HomeText?> rawHomeText() async {
-    try {
-      final row = await (_db.select(
-        _db.appSettings,
-      )..where((s) => s.id.equals(_rowId))).getSingleOrNull();
-      if (row == null) return null;
-      return HomeText(
-        welcomeTitle: row.welcomeTitle,
-        extraLine: row.extraLine,
-        themeKey: homeThemeKeyFromStorage(row.themeKey),
-      );
-    } catch (e) {
-      throw StorageException(e);
-    }
-  }
+  Future<HomeText?> rawHomeText() => guardStorage(() async {
+    final row = await (_db.select(
+      _db.appSettings,
+    )..where((s) => s.id.equals(_rowId))).getSingleOrNull();
+    if (row == null) return null;
+    return HomeText(
+      welcomeTitle: row.welcomeTitle,
+      extraLine: row.extraLine,
+      themeKey: homeThemeKeyFromStorage(row.themeKey),
+    );
+  });
 
   Future<void> updateHomeText({
     required String welcomeTitle,
     required String extraLine,
     required HomeThemeKey themeKey,
-  }) async {
+  }) => guardStorage(() async {
     final trimmedTitle = welcomeTitle.trim();
-    try {
-      await _db
-          .into(_db.appSettings)
-          .insertOnConflictUpdate(
-            AppSettingsCompanion(
-              id: const Value(_rowId),
-              welcomeTitle: Value(
-                trimmedTitle.isEmpty ? defaultWelcomeTitle : trimmedTitle,
-              ),
-              extraLine: Value(extraLine.trim()),
-              themeKey: Value(themeKey.name),
+    await _db
+        .into(_db.appSettings)
+        .insertOnConflictUpdate(
+          AppSettingsCompanion(
+            id: const Value(_rowId),
+            welcomeTitle: Value(
+              trimmedTitle.isEmpty ? defaultWelcomeTitle : trimmedTitle,
             ),
-          );
-    } catch (e) {
-      throw StorageException(e);
-    }
-  }
+            extraLine: Value(extraLine.trim()),
+            themeKey: Value(themeKey.name),
+          ),
+        );
+  });
 
   HomeText _toHomeText(AppSettingsRow? row) => HomeText(
     welcomeTitle: row?.welcomeTitle ?? defaultWelcomeTitle,

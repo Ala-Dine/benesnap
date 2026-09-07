@@ -1,15 +1,12 @@
 import 'package:drift/drift.dart';
-// The whole `drift/remote.dart` library is marked experimental, but this is
-// the only supported way to unwrap an exception thrown across the
-// `NativeDatabase.createInBackground` isolate boundary.
-// ignore: experimental_member_use
-import 'package:drift/remote.dart' show DriftRemoteException;
 import 'package:sqlite3/common.dart' show SqliteException;
 
 import '../db/app_database.dart';
 import '../exceptions.dart';
+import 'storage_guard.dart';
 import '../models/product.dart';
 import '../models/suitability_tag.dart';
+import 'row_mappers.dart';
 
 /// The only place that reads or writes product rows.
 ///
@@ -20,17 +17,14 @@ class ProductRepository {
 
   final AppDatabase _db;
 
-  /// SQLite's extended result code for a UNIQUE constraint failure.
-  static const _uniqueViolation = 2067;
-
-  Future<List<Product>> all() => _guard(() async {
+  Future<List<Product>> all() => guardStorage(() async {
     final rows = await (_db.select(
       _db.products,
     )..orderBy([(p) => OrderingTerm(expression: p.brandName)])).get();
     return _attachTags(rows);
   });
 
-  Future<Product?> findById(int id) => _guard(() => _findById(id));
+  Future<Product?> findById(int id) => guardStorage(() => _findById(id));
 
   /// The unguarded body of [findById], for callers already inside `_guard`
   /// (and, in [create]/[update], inside a transaction that must not be
@@ -44,7 +38,7 @@ class ProductRepository {
   }
 
   /// The scan path. [barcode] is expected to be normalized already.
-  Future<Product?> findByBarcode(String barcode) => _guard(() async {
+  Future<Product?> findByBarcode(String barcode) => guardStorage(() async {
     final row = await (_db.select(
       _db.products,
     )..where((p) => p.barcode.equals(barcode))).getSingleOrNull();
@@ -52,27 +46,7 @@ class ProductRepository {
     return (await _attachTags([row])).first;
   });
 
-  /// Matches brand, product name, or barcode — the three things a shop
-  /// assistant might have to hand.
-  Future<List<Product>> search(String query) => _guard(() async {
-    final trimmed = query.trim();
-    if (trimmed.isEmpty) return all();
-
-    final pattern = '%${trimmed.toLowerCase()}%';
-    final rows =
-        await (_db.select(_db.products)
-              ..where(
-                (p) =>
-                    p.brandName.lower().like(pattern) |
-                    p.productName.lower().like(pattern) |
-                    p.barcode.lower().like(pattern),
-              )
-              ..orderBy([(p) => OrderingTerm(expression: p.brandName)]))
-            .get();
-    return _attachTags(rows);
-  });
-
-  Future<Product> create(ProductDraft draft) => _guard(() async {
+  Future<Product> create(ProductDraft draft) => guardStorage(() async {
     final now = DateTime.now().millisecondsSinceEpoch;
 
     // The read-back happens inside the transaction. Outside it, a concurrent
@@ -100,9 +74,9 @@ class ProductRepository {
       if (created == null) throw const ProductNotFoundException();
       return created;
     });
-  }, barcode: draft.barcode);
+  }, onUniqueViolation: () => DuplicateBarcodeException(draft.barcode));
 
-  Future<Product> update(int id, ProductDraft draft) => _guard(() async {
+  Future<Product> update(int id, ProductDraft draft) => guardStorage(() async {
     final now = DateTime.now().millisecondsSinceEpoch;
 
     // Read back inside the transaction, for the same reason as create.
@@ -127,7 +101,7 @@ class ProductRepository {
       if (updated == null) throw const ProductNotFoundException();
       return updated;
     });
-  }, barcode: draft.barcode);
+  }, onUniqueViolation: () => DuplicateBarcodeException(draft.barcode));
 
   /// Deletes the product and returns the `imagePath` it was holding, so the
   /// caller can remove the file too.
@@ -136,7 +110,7 @@ class ProductRepository {
   /// only ever keeps a filename — so nothing else can work out afterwards
   /// which file belonged to a row that no longer exists. Reading it inside
   /// the same transaction as the delete is what makes the pair reliable.
-  Future<String?> delete(int id) => _guard(() async {
+  Future<String?> delete(int id) => guardStorage(() async {
     return _db.transaction(() async {
       final row = await (_db.select(
         _db.products,
@@ -217,38 +191,12 @@ class ProductRepository {
     for (final row in joined) {
       final link = row.readTable(_db.productTags);
       final tag = row.readTable(_db.suitabilityTags);
-      byProduct.putIfAbsent(link.productId, () => []).add(_toTag(tag));
+      byProduct.putIfAbsent(link.productId, () => []).add(tagFromRow(tag));
     }
 
     return [
       for (final row in rows) _toProduct(row, byProduct[row.id] ?? const []),
     ];
-  }
-
-  /// Runs [action], translating storage failures into [AppException]s.
-  ///
-  /// A UNIQUE violation on a write that carried a [barcode] is by definition
-  /// the barcode index, since it is the only unique column on the table.
-  /// `_assertBarcodeFree` normally catches that first; this is the backstop for
-  /// a genuine race, so the constraint can never reach the user raw.
-  Future<T> _guard<T>(Future<T> Function() action, {String? barcode}) async {
-    try {
-      return await action();
-    } on AppException {
-      rethrow;
-    } catch (e) {
-      // The background isolate wraps failures, so the SqliteException we care
-      // about arrives inside a DriftRemoteException.
-      final cause = e is DriftRemoteException ? e.remoteCause : e;
-
-      if (cause is AppException) throw cause;
-      if (barcode != null &&
-          cause is SqliteException &&
-          cause.extendedResultCode == _uniqueViolation) {
-        throw DuplicateBarcodeException(barcode);
-      }
-      throw StorageException(cause);
-    }
   }
 
   static Product _toProduct(ProductRow row, List<SuitabilityTag> tags) {
@@ -265,7 +213,4 @@ class ProductRepository {
       tags: tags,
     );
   }
-
-  static SuitabilityTag _toTag(SuitabilityTagRow row) =>
-      SuitabilityTag(id: row.id, label: row.label, category: row.category);
 }

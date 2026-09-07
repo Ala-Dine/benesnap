@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../app/navigation.dart';
 import '../../app/theme.dart';
 import '../../data/exceptions.dart';
 import '../../data/models/home_text.dart';
@@ -9,6 +9,8 @@ import '../../data/models/home_theme.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/database_providers.dart';
 import '../../providers/settings_providers.dart';
+import '../../widgets/primary_action_button.dart';
+import '../../widgets/confirm_dialog.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/labeled_field.dart';
 
@@ -108,40 +110,20 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   /// dialog on both screens and shouldn't have to read it twice.
   Future<void> _confirmDiscardThenLeave() async {
     if (_hasUnsavedChanges) {
-      final discard = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('تجاهل التغييرات؟'),
-          content: const Text('ستفقد ما أدخلته في هذه الصفحة.'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('متابعة التعديل'),
-            ),
-            ElevatedButton(
-              onPressed: () => Navigator.pop(context, true),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTokens.of(context).dangerBg,
-                foregroundColor: Theme.of(context).colorScheme.error,
-              ),
-              child: const Text('تجاهل'),
-            ),
-          ],
-        ),
+      final discard = await confirmDestructive(
+        context,
+        title: 'تجاهل التغييرات؟',
+        message: 'ستفقد ما أدخلته في هذه الصفحة.',
+        confirmLabel: 'تجاهل',
+        cancelLabel: 'متابعة التعديل',
       );
-      if (discard != true) return;
+      if (!discard) return;
     }
     if (!mounted) return;
     _goBack();
   }
 
-  void _goBack() {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/inventory');
-    }
-  }
+  void _goBack() => context.popOr('/inventory');
 
   /// The counter and the live preview listen to the controllers directly
   /// (see the ListenableBuilders below), so typing doesn't need a rebuild of
@@ -545,26 +527,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
             ),
             const SizedBox(height: 16),
-            ElevatedButton(
-              onPressed: _isSavingHomeText || _homeTextLoadFailed
-                  ? null
-                  : _saveHomeText,
-              style: AppTheme.darkButtonStyle(
-                context,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(13)),
-                ),
-              ),
-              child: _isSavingHomeText
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: theme.colorScheme.onPrimary,
-                      ),
-                    )
-                  : const Text('حفظ نصوص الصفحة'),
+            PrimaryActionButton(
+              label: 'حفظ نصوص الصفحة',
+              busy: _isSavingHomeText,
+              onPressed: _homeTextLoadFailed ? null : _saveHomeText,
             ),
             if (_homeTextError != null) ...[
               const SizedBox(height: 12),
@@ -652,24 +618,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               const SizedBox(height: 16),
             ],
-            ElevatedButton(
-              onPressed: _isUpdatingCredentials ? null : _updateCredentials,
-              style: AppTheme.darkButtonStyle(
-                context,
-                shape: const RoundedRectangleBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(13)),
-                ),
-              ),
-              child: _isUpdatingCredentials
-                  ? SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                    )
-                  : const Text('تحديث بيانات الدخول'),
+            PrimaryActionButton(
+              label: 'تحديث بيانات الدخول',
+              busy: _isUpdatingCredentials,
+              onPressed: _updateCredentials,
             ),
           ],
         ),

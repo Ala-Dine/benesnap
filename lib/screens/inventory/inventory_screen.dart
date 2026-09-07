@@ -5,12 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/navigation.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../data/exceptions.dart';
 import '../../data/models/product.dart';
 import '../../providers/database_providers.dart';
 import '../../providers/product_providers.dart';
+import '../../widgets/confirm_dialog.dart';
 import '../../widgets/product_image.dart';
 import '../../widgets/striped_placeholder.dart';
 
@@ -65,13 +67,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     super.dispose();
   }
 
-  void _goBack() {
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/');
-    }
-  }
+  void _goBack() => context.popOr('/');
 
   /// Typing runs ahead of filtering: a shop assistant types a brand name
   /// faster than it is worth re-filtering the catalogue for each letter, and
@@ -103,32 +99,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   }
 
   Future<void> _confirmDelete(Product product) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('حذف هذا المنتج؟'),
-        content: Text(
-          'سيتم حذف "${product.displayName}" من الكتالوج. '
-          'لا يمكن التراجع عن هذا الإجراء.',
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('إلغاء'),
-          ),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context, true),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppTokens.of(context).dangerBg,
-              foregroundColor: Theme.of(context).colorScheme.error,
-            ),
-            child: const Text('حذف'),
-          ),
-        ],
-      ),
-    );
-
-    if (confirmed != true || !mounted) return;
+    if (!await confirmDeleteProduct(context, product) || !mounted) return;
 
     try {
       final removedImage = await ref

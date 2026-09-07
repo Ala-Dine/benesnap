@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../app/navigation.dart';
 import '../../app/router.dart';
 import '../../app/theme.dart';
 import '../../data/exceptions.dart';
@@ -196,11 +197,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
 
   void _returnHome() {
     if (!mounted) return;
-    if (context.canPop()) {
-      context.pop();
-    } else {
-      context.go('/');
-    }
+    context.popOr('/');
   }
 
   @override

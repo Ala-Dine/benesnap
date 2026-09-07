@@ -173,53 +173,6 @@ void main() {
     });
   });
 
-  group('search', () {
-    setUp(() async {
-      await products.create(
-        draft(
-          barcode: '111111',
-          brandName: 'Aurelia',
-          productName: 'Hydrating serum',
-        ),
-      );
-      await products.create(
-        draft(
-          barcode: '222222',
-          brandName: 'Botanica',
-          productName: 'Clay mask',
-        ),
-      );
-    });
-
-    test('matches on brand', () async {
-      final hits = await products.search('bota');
-      expect(hits.single.brandName, 'Botanica');
-    });
-
-    test('matches on product name', () async {
-      final hits = await products.search('serum');
-      expect(hits.single.productName, 'Hydrating serum');
-    });
-
-    test('matches on barcode', () async {
-      final hits = await products.search('2222');
-      expect(hits.single.brandName, 'Botanica');
-    });
-
-    test('is case-insensitive', () async {
-      final hits = await products.search('AURELIA');
-      expect(hits.single.brandName, 'Aurelia');
-    });
-
-    test('an empty query returns everything', () async {
-      expect(await products.search('   '), hasLength(2));
-    });
-
-    test('a query matching nothing returns empty', () async {
-      expect(await products.search('zzzz'), isEmpty);
-    });
-  });
-
   group('update', () {
     test('changes the stored fields', () async {
       final created = await products.create(draft());
@@ -377,11 +330,12 @@ void main() {
       expect(second.length, first.length);
     });
 
-    test('byCategory filters correctly', () async {
-      final hair = await tags.byCategory(TagCategory.hair);
+    test('cover both categories', () async {
+      final all = await tags.all();
+      final hair = all.where((t) => t.category == TagCategory.hair);
 
       expect(hair, isNotEmpty);
-      expect(hair.every((t) => t.category == TagCategory.hair), isTrue);
+      expect(all.any((t) => t.category == TagCategory.skin), isTrue);
       expect(hair.map((t) => t.label), contains('شديد التجعد'));
     });
   });

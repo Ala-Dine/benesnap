@@ -647,6 +647,15 @@ abstract final class AppTheme {
   /// action — login's submit button, the not-found screen's admin-only "add
   /// this product" button — distinct from the softer tan pill
   /// [elevatedButtonTheme] gives every other button by default.
+  /// The confirming action on a destructive dialog, and the delete buttons
+  /// that open them — four hand-rolled copies before this.
+  static ButtonStyle dangerButtonStyle(BuildContext context) {
+    return ElevatedButton.styleFrom(
+      backgroundColor: AppTokens.of(context).dangerBg,
+      foregroundColor: Theme.of(context).colorScheme.error,
+    );
+  }
+
   static ButtonStyle darkButtonStyle(
     BuildContext context, {
     OutlinedBorder? shape,
