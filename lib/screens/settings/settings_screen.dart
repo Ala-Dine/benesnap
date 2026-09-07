@@ -8,6 +8,7 @@ import '../../data/models/home_text.dart';
 import '../../data/models/home_theme.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/database_providers.dart';
+import '../../providers/settings_providers.dart';
 import '../../services/auth_service.dart';
 import '../../widgets/labeled_field.dart';
 
@@ -33,6 +34,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   HomeThemeKey _selectedTheme = defaultHomeThemeKey;
 
+  /// What the database currently holds, as last loaded or saved — the
+  /// baseline both the unsaved-changes guard and a failed load compare
+  /// against.
+  String _loadedTitle = '';
+  String _loadedExtraLine = '';
+  late HomeThemeKey _loadedTheme;
+  String _loadedUsername = '';
+
+  /// A load that failed left every field showing something the shop never
+  /// typed. Saving from that state would overwrite their real welcome text
+  /// and theme with it, so saving stays disabled until a load succeeds.
+  bool _homeTextLoadFailed = false;
+
   bool _isSavingHomeText = false;
   bool _homeTextSaved = false;
   String? _homeTextError;
@@ -44,7 +58,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    _usernameController.text = ref.read(authSessionProvider) ?? '';
+    _loadedUsername = ref.read(authSessionProvider) ?? '';
+    _usernameController.text = _loadedUsername;
+    // Already resolved before the first frame (see HomeTextNotifier.build),
+    // so there is no reason to let the picker show the default theme for the
+    // beat it takes _loadHomeText to come back and correct it.
+    _selectedTheme = _loadedTheme = ref.read(homeTextProvider).themeKey;
     _loadHomeText();
   }
 
@@ -64,13 +83,56 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final raw = await ref.read(settingsRepositoryProvider).rawHomeText();
       if (!mounted) return;
       setState(() {
-        _welcomeTitleController.text = raw?.welcomeTitle ?? '';
-        _extraLineController.text = raw?.extraLine ?? '';
-        _selectedTheme = raw?.themeKey ?? defaultHomeThemeKey;
+        _welcomeTitleController.text = _loadedTitle = raw?.welcomeTitle ?? '';
+        _extraLineController.text = _loadedExtraLine = raw?.extraLine ?? '';
+        _selectedTheme = _loadedTheme = raw?.themeKey ?? defaultHomeThemeKey;
       });
-    } on AppException {
-      // The fields just stay empty; saving still works from a blank slate.
+    } on AppException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _homeTextLoadFailed = true;
+        _homeTextError = e.message;
+      });
     }
+  }
+
+  /// Password fields are deliberately excluded: they are transient secrets
+  /// re-typed per attempt, not pending edits worth warning about.
+  bool get _hasUnsavedChanges =>
+      _welcomeTitleController.text.trim() != _loadedTitle ||
+      _extraLineController.text.trim() != _loadedExtraLine ||
+      _selectedTheme != _loadedTheme ||
+      _usernameController.text.trim() != _loadedUsername;
+
+  /// Same wording as the product form's guard — a shop assistant meets this
+  /// dialog on both screens and shouldn't have to read it twice.
+  Future<void> _confirmDiscardThenLeave() async {
+    if (_hasUnsavedChanges) {
+      final discard = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text('تجاهل التغييرات؟'),
+          content: const Text('ستفقد ما أدخلته في هذه الصفحة.'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const Text('متابعة التعديل'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context, true),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTokens.of(context).dangerBg,
+                foregroundColor: Theme.of(context).colorScheme.error,
+              ),
+              child: const Text('تجاهل'),
+            ),
+          ],
+        ),
+      );
+      if (discard != true) return;
+    }
+    if (!mounted) return;
+    _goBack();
   }
 
   void _goBack() {
@@ -126,6 +188,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       setState(() {
         _isSavingHomeText = false;
         _homeTextSaved = true;
+        _loadedTitle = _welcomeTitleController.text.trim();
+        _loadedExtraLine = _extraLineController.text.trim();
+        _loadedTheme = _selectedTheme;
       });
     } on AppException catch (e) {
       if (!mounted) return;
@@ -237,91 +302,98 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     final theme = Theme.of(context);
     final tokens = AppTokens.of(context);
 
-    return Scaffold(
-      backgroundColor: tokens.formCanvas,
-      body: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(40, 22, 40, 22),
-              child: Row(
-                children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: tokens.imagePanelBorder,
-                        width: 1.5,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: tokens.shadowColor.withValues(alpha: 0.08),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        await _confirmDiscardThenLeave();
+      },
+      child: Scaffold(
+        backgroundColor: tokens.formCanvas,
+        body: SafeArea(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(40, 22, 40, 22),
+                child: Row(
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                        shape: BoxShape.circle,
+                        border: Border.all(
+                          color: tokens.imagePanelBorder,
+                          width: 1.5,
                         ),
-                      ],
-                    ),
-                    child: IconButton(
-                      onPressed: _goBack,
-                      icon: const Icon(Icons.arrow_back_rounded),
-                      iconSize: 18,
-                      tooltip: 'رجوع',
-                      style: IconButton.styleFrom(
-                        shape: const CircleBorder(),
-                        fixedSize: const Size(40, 40),
+                        boxShadow: [
+                          BoxShadow(
+                            color: tokens.shadowColor.withValues(alpha: 0.08),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
                       ),
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'الإعدادات',
-                        style: AppTheme.weighted(
-                          theme.textTheme.headlineSmall,
-                          FontWeight.w700,
-                        ).copyWith(fontSize: 26),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        'خصص نصوص الصفحة الرئيسية وبيانات دخول المدير.',
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: tokens.muted,
+                      child: IconButton(
+                        onPressed: _confirmDiscardThenLeave,
+                        icon: const Icon(Icons.arrow_back_rounded),
+                        iconSize: 18,
+                        tooltip: 'رجوع',
+                        style: IconButton.styleFrom(
+                          shape: const CircleBorder(),
+                          fixedSize: const Size(40, 40),
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.fromLTRB(40, 0, 40, 32),
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  // The cards' content is shorter than the space available
-                  // at most window sizes; stretching them to fill it left a
-                  // dead empty strip at the bottom of each card.
-                  // IntrinsicHeight sizes both to the taller card's natural
-                  // content height instead, so they still match each other
-                  // without padding out to the full remaining height.
-                  child: IntrinsicHeight(
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                    ),
+                    const SizedBox(width: 14),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Expanded(child: _buildHomeTextCard(context)),
-                        const SizedBox(width: 26),
-                        Expanded(child: _buildAdminAccountCard(context)),
+                        Text(
+                          'الإعدادات',
+                          style: AppTheme.weighted(
+                            theme.textTheme.headlineSmall,
+                            FontWeight.w700,
+                          ).copyWith(fontSize: 26),
+                        ),
+                        const SizedBox(height: 4),
+                        Text(
+                          'خصص نصوص الصفحة الرئيسية وبيانات دخول المدير.',
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: tokens.muted,
+                          ),
+                        ),
                       ],
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(40, 0, 40, 32),
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    // The cards' content is shorter than the space available
+                    // at most window sizes; stretching them to fill it left a
+                    // dead empty strip at the bottom of each card.
+                    // IntrinsicHeight sizes both to the taller card's natural
+                    // content height instead, so they still match each other
+                    // without padding out to the full remaining height.
+                    child: IntrinsicHeight(
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          Expanded(child: _buildHomeTextCard(context)),
+                          const SizedBox(width: 26),
+                          Expanded(child: _buildAdminAccountCard(context)),
+                        ],
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -459,7 +531,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
             ),
             const SizedBox(height: 16),
             ElevatedButton(
-              onPressed: _isSavingHomeText ? null : _saveHomeText,
+              onPressed: _isSavingHomeText || _homeTextLoadFailed
+                  ? null
+                  : _saveHomeText,
               style: AppTheme.darkButtonStyle(
                 context,
                 shape: const RoundedRectangleBorder(

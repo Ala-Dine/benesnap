@@ -15,10 +15,17 @@ class SettingsRepository {
   static const _rowId = 1;
 
   /// Emits the current homepage text, and again on every future update.
+  ///
+  /// Errors arrive as [StorageException] like every other method here — a
+  /// raw drift error reaching a listener would be the one place in this
+  /// class where [exceptions.dart]'s contract didn't hold.
   Stream<HomeText> watchHomeText() {
     final query = _db.select(_db.appSettings)
       ..where((s) => s.id.equals(_rowId));
-    return query.watchSingleOrNull().map(_toHomeText);
+    return query
+        .watchSingleOrNull()
+        .map(_toHomeText)
+        .handleError((Object e) => throw StorageException(e));
   }
 
   /// One-shot read, resolved for display (falls back to the default

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/models/home_text.dart';
@@ -31,7 +32,19 @@ class HomeTextNotifier extends Notifier<HomeText> {
     final subscription = ref
         .watch(settingsRepositoryProvider)
         .watchHomeText()
-        .listen((value) => state = value);
+        .listen(
+          (value) => state = value,
+          // Every colour in the app comes from this value, so there is
+          // nothing better to fall back to than the last one that worked —
+          // and no listener to report to either, since the theme is read
+          // synchronously by MaterialApp rather than as an AsyncValue.
+          // Dropping the error here keeps it out of the root zone, where an
+          // unhandled one would take the app down in debug and silently kill
+          // live theme updates in release.
+          onError: (Object error, StackTrace stackTrace) {
+            debugPrint('home text stream failed, keeping last value: $error');
+          },
+        );
     ref.onDispose(subscription.cancel);
     return ref.watch(initialHomeTextProvider);
   }
