@@ -6,6 +6,10 @@ plugins {
 }
 
 android {
+    // The build-time namespace (the generated R class) stays as generated:
+    // changing it means moving MainActivity.kt to a matching source
+    // directory, and Android is not a platform this desktop kiosk ships to.
+    // The shipped identity is applicationId below.
     namespace = "com.example.benesnap"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
@@ -21,7 +25,7 @@ android {
 
     defaultConfig {
         // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "com.example.benesnap"
+        applicationId = "com.benesnap.kiosk"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

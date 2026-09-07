@@ -3,9 +3,9 @@
 ; Then compile this script:     "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installers\benesnap.iss
 ; The installer is written to:  installers\Output\
 
-#define MyAppName "benesnap"
+#define MyAppName "BeneSnap"
 #define MyAppVersion "1.0.0"
-#define MyAppPublisher "com.example"
+#define MyAppPublisher "BeneSnap"
 #define MyAppExeName "benesnap.exe"
 #define MyReleaseDir "..\build\windows\x64\runner\Release"
 #define MyAppIcon "..\windows\runner\resources\app_icon.ico"
