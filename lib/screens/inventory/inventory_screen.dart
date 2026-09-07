@@ -12,6 +12,7 @@ import '../../data/exceptions.dart';
 import '../../data/models/product.dart';
 import '../../providers/database_providers.dart';
 import '../../providers/product_providers.dart';
+import '../../widgets/circle_icon_button.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../widgets/product_image.dart';
 import '../../widgets/striped_placeholder.dart';
@@ -263,20 +264,12 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
               padding: const EdgeInsetsDirectional.fromSTEB(34, 22, 34, 18),
               child: Row(
                 children: [
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface.withValues(alpha: 0.55),
-                      shape: BoxShape.circle,
-                    ),
-                    child: IconButton(
-                      onPressed: _goBack,
-                      icon: const Icon(Icons.arrow_back_rounded),
-                      iconSize: 19,
-                      tooltip: 'رجوع',
-                      style: IconButton.styleFrom(
-                        shape: const CircleBorder(),
-                        fixedSize: const Size(40, 40),
-                      ),
+                  CircleIconButton(
+                    icon: Icons.arrow_back_rounded,
+                    tooltip: 'رجوع',
+                    onPressed: _goBack,
+                    background: theme.colorScheme.surface.withValues(
+                      alpha: 0.55,
                     ),
                   ),
                   const SizedBox(width: 14),
@@ -290,23 +283,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                   const SizedBox(width: 24),
                   Expanded(child: _buildSearchBar(theme, tokens)),
                   const SizedBox(width: 16),
-                  DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: theme.colorScheme.surface,
-                      shape: BoxShape.circle,
-                      boxShadow: tokens.raisedShadow,
-                    ),
-                    child: IconButton(
-                      onPressed: _openSettings,
-                      icon: const Icon(Icons.settings_outlined),
-                      iconSize: 19,
-                      tooltip: 'الإعدادات',
-                      color: tokens.body,
-                      style: IconButton.styleFrom(
-                        shape: const CircleBorder(),
-                        fixedSize: const Size(44, 44),
-                      ),
-                    ),
+                  CircleIconButton(
+                    icon: Icons.settings_outlined,
+                    tooltip: 'الإعدادات',
+                    onPressed: _openSettings,
+                    iconColor: tokens.body,
+                    diameter: 44,
+                    shadow: tokens.raisedShadow,
                   ),
                   const SizedBox(width: 10),
                   ElevatedButton.icon(

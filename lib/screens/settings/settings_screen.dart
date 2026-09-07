@@ -9,6 +9,7 @@ import '../../data/models/home_theme.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/database_providers.dart';
 import '../../providers/settings_providers.dart';
+import '../../widgets/circle_icon_button.dart';
 import '../../widgets/primary_action_button.dart';
 import '../../widgets/confirm_dialog.dart';
 import '../../services/auth_service.dart';
@@ -305,32 +306,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 padding: const EdgeInsets.fromLTRB(40, 22, 40, 22),
                 child: Row(
                   children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.surface,
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                          color: tokens.imagePanelBorder,
-                          width: 1.5,
-                        ),
-                        boxShadow: [
-                          BoxShadow(
-                            color: tokens.shadowColor.withValues(alpha: 0.08),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
+                    CircleIconButton(
+                      icon: Icons.arrow_back_rounded,
+                      tooltip: 'رجوع',
+                      onPressed: _confirmDiscardThenLeave,
+                      iconSize: 18,
+                      border: Border.all(
+                        color: tokens.imagePanelBorder,
+                        width: 1.5,
                       ),
-                      child: IconButton(
-                        onPressed: _confirmDiscardThenLeave,
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        iconSize: 18,
-                        tooltip: 'رجوع',
-                        style: IconButton.styleFrom(
-                          shape: const CircleBorder(),
-                          fixedSize: const Size(40, 40),
+                      shadow: [
+                        BoxShadow(
+                          color: tokens.shadowColor.withValues(alpha: 0.08),
+                          blurRadius: 8,
+                          offset: const Offset(0, 2),
                         ),
-                      ),
+                      ],
                     ),
                     const SizedBox(width: 14),
                     Column(
@@ -480,7 +471,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               decoration: BoxDecoration(
                 borderRadius: AppRadii.preview,
-                color: _selectedTheme.bg,
+                gradient: AppTheme.kioskCanvas(
+                  top: AppTokens.forTheme(_selectedTheme).canvasGradientTop,
+                  bottom: _selectedTheme.bg,
+                ),
               ),
               alignment: Alignment.center,
               child: ListenableBuilder(

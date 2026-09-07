@@ -20,6 +20,7 @@ import '../../providers/product_providers.dart';
 import '../../providers/scanner_providers.dart';
 import '../../providers/tag_providers.dart';
 import '../../services/scanner/barcode_scanner_service.dart';
+import '../../widgets/circle_icon_button.dart';
 import '../../widgets/primary_action_button.dart';
 import '../../widgets/dashed_border_box.dart';
 import '../../widgets/confirm_dialog.dart';
@@ -531,22 +532,11 @@ class _ProductFormBodyState extends ConsumerState<_ProductFormBody> {
                 padding: const EdgeInsetsDirectional.fromSTEB(40, 22, 40, 0),
                 child: Row(
                   children: [
-                    DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: Theme.of(context).colorScheme.surface,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: tokens.border, width: 1.5),
-                      ),
-                      child: IconButton(
-                        onPressed: _isSaving ? null : _cancel,
-                        icon: const Icon(Icons.arrow_back_rounded),
-                        iconSize: 19,
-                        tooltip: 'رجوع',
-                        style: IconButton.styleFrom(
-                          shape: const CircleBorder(),
-                          fixedSize: const Size(40, 40),
-                        ),
-                      ),
+                    CircleIconButton(
+                      icon: Icons.arrow_back_rounded,
+                      tooltip: 'رجوع',
+                      onPressed: _isSaving ? null : _cancel,
+                      border: Border.all(color: tokens.border, width: 1.5),
                     ),
                     const SizedBox(width: 14),
                     Text(

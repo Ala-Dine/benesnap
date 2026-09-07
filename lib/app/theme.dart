@@ -730,6 +730,21 @@ abstract final class AppTheme {
   /// action — login's submit button, the not-found screen's admin-only "add
   /// this product" button — distinct from the softer tan pill
   /// [elevatedButtonTheme] gives every other button by default.
+  /// The kiosk screen's background wash.
+  ///
+  /// Shared so the settings screen's live preview and the real home screen
+  /// can't drift apart: the preview used to paint a flat colour while the
+  /// kiosk painted this gradient, so what a shop picked never quite looked
+  /// like what they got.
+  static Gradient kioskCanvas({required Color top, required Color bottom}) {
+    return RadialGradient(
+      // "circle at 50% 38%" in the design — pulled up from dead centre.
+      center: const Alignment(0, -0.24),
+      colors: [top, bottom],
+      stops: const [0.0, 0.62],
+    );
+  }
+
   /// The confirming action on a destructive dialog, and the delete buttons
   /// that open them — four hand-rolled copies before this.
   static ButtonStyle dangerButtonStyle(BuildContext context) {

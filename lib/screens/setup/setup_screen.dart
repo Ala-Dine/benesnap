@@ -6,6 +6,7 @@ import '../../app/theme.dart';
 import '../../data/exceptions.dart';
 import '../../providers/auth_providers.dart';
 import '../../providers/database_providers.dart';
+import '../../widgets/circle_icon_button.dart';
 import '../../widgets/primary_action_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/labeled_field.dart';
@@ -118,21 +119,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Center(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: tokens.iconBadgeBg,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(15),
-                              child: Icon(
-                                Icons.person_add_alt_rounded,
-                                size: 24,
-                                color: tokens.goldDeep,
-                              ),
-                            ),
-                          ),
+                        const Center(
+                          child: IconBadge(icon: Icons.person_add_alt_rounded),
                         ),
                         const SizedBox(height: 14),
                         Text(

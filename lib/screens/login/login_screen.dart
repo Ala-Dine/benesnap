@@ -8,6 +8,7 @@ import '../../app/navigation.dart';
 import '../../app/theme.dart';
 import '../../providers/auth_providers.dart';
 import '../../services/auth_service.dart';
+import '../../widgets/circle_icon_button.dart';
 import '../../widgets/primary_action_button.dart';
 import '../../widgets/app_card.dart';
 import '../../widgets/labeled_field.dart';
@@ -145,20 +146,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        Center(
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: tokens.iconBadgeBg,
-                              shape: BoxShape.circle,
-                            ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(15),
-                              child: Icon(
-                                Icons.lock_outline_rounded,
-                                size: 24,
-                                color: tokens.goldDeep,
-                              ),
-                            ),
+                        const Center(
+                          child: IconBadge(
+                            icon: Icons.lock_outline_rounded,
+                            iconSize: 24,
                           ),
                         ),
                         const SizedBox(height: 14),

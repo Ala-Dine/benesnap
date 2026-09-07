@@ -10,6 +10,7 @@ import '../../providers/database_providers.dart';
 import '../../providers/scanner_providers.dart';
 import '../../providers/settings_providers.dart';
 import '../../services/scanner/scan_event.dart';
+import '../../widgets/circle_icon_button.dart';
 import '../../widgets/scan_indicator.dart';
 
 /// The kiosk landing screen. Scan a product to see it; tap the account icon
@@ -181,12 +182,9 @@ class _WelcomeView extends StatelessWidget {
 
     return DecoratedBox(
       decoration: BoxDecoration(
-        gradient: RadialGradient(
-          // "circle at 50% 38%" in the design — pulled up from dead centre.
-          center: const Alignment(0, -0.24),
-          radius: 1.0,
-          colors: [tokens.canvasGradientTop, theme.colorScheme.secondary],
-          stops: const [0.0, 0.62],
+        gradient: AppTheme.kioskCanvas(
+          top: tokens.canvasGradientTop,
+          bottom: theme.colorScheme.secondary,
         ),
       ),
       child: Padding(
@@ -260,29 +258,20 @@ class _AccountButton extends StatelessWidget {
     final theme = Theme.of(context);
     final tokens = AppTokens.of(context);
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        shape: BoxShape.circle,
-        boxShadow: [
-          BoxShadow(
-            color: tokens.shadowColor.withValues(alpha: 0.16),
-            blurRadius: 16,
-            offset: const Offset(0, 6),
-          ),
-        ],
-      ),
-      child: IconButton(
-        onPressed: onPressed,
-        icon: const Icon(Icons.person_outline_rounded),
-        iconSize: 24,
-        tooltip: 'الحساب',
-        color: theme.colorScheme.onSurface,
-        style: IconButton.styleFrom(
-          shape: const CircleBorder(),
-          fixedSize: const Size(54, 54),
+    return CircleIconButton(
+      icon: Icons.person_outline_rounded,
+      tooltip: 'الحساب',
+      onPressed: onPressed,
+      iconSize: 24,
+      diameter: 54,
+      iconColor: theme.colorScheme.onSurface,
+      shadow: [
+        BoxShadow(
+          color: tokens.shadowColor.withValues(alpha: 0.16),
+          blurRadius: 16,
+          offset: const Offset(0, 6),
         ),
-      ),
+      ],
     );
   }
 }
@@ -331,19 +320,9 @@ class _NotFoundView extends StatelessWidget {
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: tokens.iconBadgeBg,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Padding(
-                    padding: const EdgeInsets.all(15),
-                    child: Icon(
-                      Icons.qr_code_scanner_rounded,
-                      size: 26,
-                      color: tokens.goldDeep,
-                    ),
-                  ),
+                const IconBadge(
+                  icon: Icons.qr_code_scanner_rounded,
+                  iconSize: 26,
                 ),
                 const SizedBox(height: 18),
                 // A barcode is Latin/numeric content inside an otherwise Arabic
