@@ -213,6 +213,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
     required this.imagePanelBg,
     required this.imagePanelBorder,
     required this.successBg,
+    required this.raisedShadow,
+    required this.modalShadow,
     required this.prominentShadow,
     required this.shadowColor,
     required this.iconBadgeBg,
@@ -260,6 +262,21 @@ class AppTokens extends ThemeExtension<AppTokens> {
   final Color imagePanelBorder;
   final Color successBg;
 
+  /// The small lift under a circular icon button.
+  ///
+  /// Note for whoever extends this: the shadow *colour* is themed for every
+  /// use in the app (they all build on [shadowColor]), and the shapes that
+  /// repeat are named here. Five one-off shapes remain inline at their call
+  /// sites — home's account button and not-found card, the product hero
+  /// card, and the settings cards. They are close enough to each other to be
+  /// worth collapsing, but that changes how the app looks, so it belongs in
+  /// a deliberate design pass rather than in a rename.
+  final List<BoxShadow> raisedShadow;
+
+  /// The deep shadow under a floating card that owns the screen — the login
+  /// and setup cards.
+  final List<BoxShadow> modalShadow;
+
   /// The scan button / modal-level shadow — visibly heavier than [cardShadow].
   final List<BoxShadow> prominentShadow;
 
@@ -288,6 +305,20 @@ class AppTokens extends ThemeExtension<AppTokens> {
           color: shadowColor.withValues(alpha: 0.14),
           blurRadius: 18,
           offset: const Offset(0, 6),
+        ),
+      ],
+      raisedShadow: [
+        BoxShadow(
+          color: shadowColor.withValues(alpha: 0.10),
+          blurRadius: 14,
+          offset: const Offset(0, 4),
+        ),
+      ],
+      modalShadow: [
+        BoxShadow(
+          color: shadowColor.withValues(alpha: 0.20),
+          blurRadius: 56,
+          offset: const Offset(0, 24),
         ),
       ],
       formCanvas: _BgFamily.formCanvas.apply(canvas),
@@ -342,6 +373,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
   AppTokens copyWith({
     BorderRadius? cardRadius,
     List<BoxShadow>? cardShadow,
+    List<BoxShadow>? raisedShadow,
+    List<BoxShadow>? modalShadow,
     Color? formCanvas,
     Color? canvasGradientTop,
     Color? ink,
@@ -379,6 +412,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
     return AppTokens(
       cardRadius: cardRadius ?? this.cardRadius,
       cardShadow: cardShadow ?? this.cardShadow,
+      raisedShadow: raisedShadow ?? this.raisedShadow,
+      modalShadow: modalShadow ?? this.modalShadow,
       formCanvas: formCanvas ?? this.formCanvas,
       canvasGradientTop: canvasGradientTop ?? this.canvasGradientTop,
       ink: ink ?? this.ink,
@@ -421,6 +456,8 @@ class AppTokens extends ThemeExtension<AppTokens> {
     return AppTokens(
       cardRadius: BorderRadius.lerp(cardRadius, other.cardRadius, t)!,
       cardShadow: BoxShadow.lerpList(cardShadow, other.cardShadow, t)!,
+      raisedShadow: BoxShadow.lerpList(raisedShadow, other.raisedShadow, t)!,
+      modalShadow: BoxShadow.lerpList(modalShadow, other.modalShadow, t)!,
       formCanvas: Color.lerp(formCanvas, other.formCanvas, t)!,
       canvasGradientTop: Color.lerp(
         canvasGradientTop,
@@ -468,6 +505,52 @@ class AppTokens extends ThemeExtension<AppTokens> {
       iconBadgeBg: Color.lerp(iconBadgeBg, other.iconBadgeBg, t)!,
     );
   }
+}
+
+/// The corner radii the design uses.
+///
+/// Constants rather than [AppTokens] fields: a radius doesn't change with
+/// the shop's colour theme, so putting them in the extension would mean
+/// lerping values that never differ. Named here so a radius is changed in
+/// one place instead of hunted for as a bare number across nine files.
+///
+/// These are the values the screens already used, not a redesign. Several
+/// are suspiciously close together (10/12/13/14, 20/22/24/26/28) — worth
+/// collapsing, but as a deliberate design decision rather than a side
+/// effect of naming them.
+abstract final class AppRadii {
+  /// Chips, small status pills, the swatch tiles.
+  static const sm = BorderRadius.all(Radius.circular(10));
+
+  /// Inline notices and the settings status pills.
+  static const notice = BorderRadius.all(Radius.circular(12));
+
+  /// Text fields and the primary buttons that sit beside them.
+  static const field = BorderRadius.all(Radius.circular(13));
+
+  /// Images inset within a card — the grid thumbnail, the form's drop zone.
+  static const inset = BorderRadius.all(Radius.circular(14));
+
+  /// The settings screen's kiosk preview panel.
+  static const preview = BorderRadius.all(Radius.circular(18));
+
+  /// The "no image yet" dashed placeholder.
+  static const placeholder = BorderRadius.all(Radius.circular(24));
+
+  /// The inventory grid's product cards.
+  static const card = BorderRadius.all(Radius.circular(20));
+
+  /// The settings cards.
+  static const panel = BorderRadius.all(Radius.circular(22));
+
+  /// The scan indicator and the home screen's inline cards.
+  static const kioskCard = BorderRadius.all(Radius.circular(26));
+
+  /// The largest surfaces: the auth cards and the product hero card.
+  static const hero = BorderRadius.all(Radius.circular(28));
+
+  /// Fully rounded — search fields, tag chips, stadium buttons.
+  static const pill = BorderRadius.all(Radius.circular(999));
 }
 
 abstract final class AppTheme {

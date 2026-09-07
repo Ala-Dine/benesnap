@@ -150,17 +150,13 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
           // state, replaces both.
           decoration: BoxDecoration(
             color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.all(Radius.circular(999)),
+            borderRadius: AppRadii.pill,
             border: Border.all(
               color: _searchFocused ? tokens.borderFocus : tokens.border,
               width: _searchFocused ? 1.5 : 1,
             ),
             boxShadow: [
-              BoxShadow(
-                color: tokens.shadowColor.withValues(alpha: 0.10),
-                blurRadius: 14,
-                offset: const Offset(0, 4),
-              ),
+              ...tokens.raisedShadow,
               // The focus ring: a static border alone can't react to
               // focus (the TextField's own InputDecoration owns that),
               // so this list is rebuilt from _searchFocused instead —
@@ -298,13 +294,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
                     decoration: BoxDecoration(
                       color: theme.colorScheme.surface,
                       shape: BoxShape.circle,
-                      boxShadow: [
-                        BoxShadow(
-                          color: tokens.shadowColor.withValues(alpha: 0.10),
-                          blurRadius: 14,
-                          offset: const Offset(0, 4),
-                        ),
-                      ],
+                      boxShadow: tokens.raisedShadow,
                     ),
                     child: IconButton(
                       onPressed: _openSettings,
@@ -573,114 +563,116 @@ class _ProductCardState extends ConsumerState<_ProductCard> {
     return MouseRegion(
       onEnter: (_) => setState(() => _hovering = true),
       onExit: (_) => setState(() => _hovering = false),
-      child: AnimatedSlide(
+      // Transform rather than AnimatedSlide: that one's offset is a
+      // *fraction of the card's height*, so the intended 3px lift came out
+      // at 4px in a four-column grid and 5px in a three-column one. And the
+      // shadow is animated alongside it — it used to snap while the lift
+      // eased, so the two halves of the same hover effect disagreed.
+      child: AnimatedContainer(
         duration: const Duration(milliseconds: 120),
-        offset: _hovering ? const Offset(0, -0.02) : Offset.zero,
-        child: Container(
-          decoration: BoxDecoration(
-            color: theme.colorScheme.surface,
-            borderRadius: const BorderRadius.all(Radius.circular(20)),
-            boxShadow: _hovering ? tokens.prominentShadow : tokens.cardShadow,
-          ),
-          clipBehavior: Clip.antiAlias,
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              onTap: widget.onTap,
-              onLongPress: widget.onDelete,
-              onSecondaryTap: widget.onDelete,
-              child: Padding(
-                // The photo sits inset within the card, not full-bleed to its
-                // edges — its own 14px corner radius is visibly smaller than
-                // the card's 20px, which only this outer padding reveals.
-                padding: const EdgeInsets.all(14),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: const BorderRadius.all(
-                            Radius.circular(14),
-                          ),
-                          child: AspectRatio(
-                            aspectRatio: 1,
-                            child: imagePath == null
-                                ? StripedPlaceholder(
-                                    background: tokens.imagePanelBg,
-                                    stripe: tokens.imagePanelBorder,
-                                    label: 'صورة المنتج',
-                                    labelStyle: theme.textTheme.labelSmall
-                                        ?.copyWith(color: tokens.faint),
-                                  )
-                                : ProductImage(
-                                    file: File(storage.resolveImage(imagePath)),
-                                  ),
-                          ),
+        curve: Curves.easeOut,
+        transform: Matrix4.translationValues(0, _hovering ? -3 : 0, 0),
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          borderRadius: AppRadii.card,
+          boxShadow: _hovering ? tokens.prominentShadow : tokens.cardShadow,
+        ),
+        clipBehavior: Clip.antiAlias,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: widget.onTap,
+            onLongPress: widget.onDelete,
+            onSecondaryTap: widget.onDelete,
+            child: Padding(
+              // The photo sits inset within the card, not full-bleed to its
+              // edges — its own 14px corner radius is visibly smaller than
+              // the card's 20px, which only this outer padding reveals.
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Stack(
+                    children: [
+                      ClipRRect(
+                        borderRadius: AppRadii.inset,
+                        child: AspectRatio(
+                          aspectRatio: 1,
+                          child: imagePath == null
+                              ? StripedPlaceholder(
+                                  background: tokens.imagePanelBg,
+                                  stripe: tokens.imagePanelBorder,
+                                  label: 'صورة المنتج',
+                                  labelStyle: theme.textTheme.labelSmall
+                                      ?.copyWith(color: tokens.faint),
+                                )
+                              : ProductImage(
+                                  file: File(storage.resolveImage(imagePath)),
+                                ),
                         ),
-                        PositionedDirectional(
-                          top: 4,
-                          end: 4,
-                          child: DecoratedBox(
-                            decoration: BoxDecoration(
-                              color: theme.colorScheme.surface.withValues(
-                                alpha: 0.85,
-                              ),
-                              shape: BoxShape.circle,
+                      ),
+                      PositionedDirectional(
+                        top: 4,
+                        end: 4,
+                        child: DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surface.withValues(
+                              alpha: 0.85,
                             ),
-                            child: IconButton(
-                              onPressed: widget.onDelete,
-                              icon: const Icon(Icons.delete_outline_rounded),
-                              iconSize: 16,
-                              tooltip: 'حذف',
-                              visualDensity: VisualDensity.compact,
-                              style: IconButton.styleFrom(
-                                shape: const CircleBorder(),
-                                fixedSize: const Size(28, 28),
-                              ),
+                            shape: BoxShape.circle,
+                          ),
+                          child: IconButton(
+                            onPressed: widget.onDelete,
+                            icon: const Icon(Icons.delete_outline_rounded),
+                            iconSize: 16,
+                            tooltip: 'حذف',
+                            visualDensity: VisualDensity.compact,
+                            style: IconButton.styleFrom(
+                              shape: const CircleBorder(),
+                              fixedSize: const Size(28, 28),
                             ),
                           ),
                         ),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    // Content-hugging, not centered in leftover flex space —
-                    // the whole card's height (chromeHeightFor)
-                    // is already computed to fit exactly this, no more.
-                    Text(
-                      widget.product.brandName.toUpperCase(),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.labelSmall?.copyWith(
-                        color: tokens.muted,
-                        letterSpacing: 0.5,
-                        fontSize: 12,
-                        height: 1.3,
                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  // Content-hugging, not centered in leftover flex space —
+                  // the whole card's height (chromeHeightFor)
+                  // is already computed to fit exactly this, no more.
+                  Text(
+                    widget.product.brandName.toUpperCase(),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.labelSmall?.copyWith(
+                      color: tokens.muted,
+                      letterSpacing: 0.5,
+                      fontSize: 12,
+                      height: 1.3,
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      widget.product.productName,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTheme.weighted(
-                        theme.textTheme.bodyLarge,
-                        FontWeight.w700,
-                      ).copyWith(fontSize: 17, height: 1.3),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    widget.product.productName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTheme.weighted(
+                      theme.textTheme.bodyLarge,
+                      FontWeight.w700,
+                    ).copyWith(fontSize: 17, height: 1.3),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    widget.product.firstKeyIngredient,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: tokens.muted,
+                      fontSize: 12,
+                      height: 1.3,
                     ),
-                    const SizedBox(height: 3),
-                    Text(
-                      widget.product.firstKeyIngredient,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: tokens.muted,
-                        fontSize: 12,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),

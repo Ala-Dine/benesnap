@@ -104,13 +104,13 @@ class LabeledField extends StatelessWidget {
             enabledBorder: borderColor == null
                 ? null
                 : OutlineInputBorder(
-                    borderRadius: const BorderRadius.all(Radius.circular(13)),
+                    borderRadius: AppRadii.field,
                     borderSide: BorderSide(color: borderColor!),
                   ),
             focusedBorder: borderColor == null
                 ? null
                 : OutlineInputBorder(
-                    borderRadius: const BorderRadius.all(Radius.circular(13)),
+                    borderRadius: AppRadii.field,
                     borderSide: BorderSide(color: borderColor!, width: 2),
                   ),
           ),

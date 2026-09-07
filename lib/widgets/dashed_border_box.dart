@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../app/theme.dart';
+
 /// A rounded-rect box with a dashed border, matching the mockups' "no image
 /// yet" placeholder and the image drop zone.
 class DashedBorderBox extends StatelessWidget {
   const DashedBorderBox({
     super.key,
     required this.child,
-    this.borderRadius = const BorderRadius.all(Radius.circular(24)),
+    this.borderRadius = AppRadii.placeholder,
     this.color,
     this.dashWidth = 6,
     this.gapWidth = 6,

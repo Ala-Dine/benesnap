@@ -213,11 +213,15 @@ class _WelcomeView extends StatelessWidget {
                             fontSize: 54,
                             height: 1.3,
                             color: Colors.white,
-                            shadows: const [
+                            // Derived from the active theme, not a fixed
+                            // tan: this was the one colour the theming
+                            // pass missed, so the white headline kept a
+                            // warm brown glow on sage, sky and blush.
+                            shadows: [
                               Shadow(
-                                color: Color(0x38785A23),
+                                color: tokens.label.withValues(alpha: 0.22),
                                 blurRadius: 18,
-                                offset: Offset(0, 3),
+                                offset: const Offset(0, 3),
                               ),
                             ],
                           ),
@@ -315,7 +319,7 @@ class _NotFoundView extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(40, 44, 40, 36),
             decoration: BoxDecoration(
               color: theme.colorScheme.surface,
-              borderRadius: const BorderRadius.all(Radius.circular(26)),
+              borderRadius: AppRadii.kioskCard,
               boxShadow: [
                 BoxShadow(
                   color: tokens.shadowColor.withValues(alpha: 0.20),

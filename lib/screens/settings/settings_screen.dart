@@ -479,7 +479,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               constraints: const BoxConstraints(minHeight: 100),
               padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
               decoration: BoxDecoration(
-                borderRadius: const BorderRadius.all(Radius.circular(18)),
+                borderRadius: AppRadii.preview,
                 color: _selectedTheme.bg,
               ),
               alignment: Alignment.center,
@@ -503,11 +503,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ).copyWith(
                             fontSize: 24,
                             color: Colors.white,
-                            shadows: const [
+                            // The previewed theme's own colour, so the
+                            // preview keeps matching the kiosk as the
+                            // swatches change.
+                            shadows: [
                               Shadow(
-                                color: Color(0x47785A23),
+                                color: _selectedTheme.title.withValues(
+                                  alpha: 0.28,
+                                ),
                                 blurRadius: 10,
-                                offset: Offset(0, 2),
+                                offset: const Offset(0, 2),
                               ),
                             ],
                           ),
@@ -692,7 +697,7 @@ class _SettingsCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         border: Border.all(color: tokens.imagePanelBorder),
-        borderRadius: const BorderRadius.all(Radius.circular(22)),
+        borderRadius: AppRadii.panel,
         boxShadow: [
           BoxShadow(
             color: tokens.shadowColor.withValues(alpha: 0.08),
@@ -733,7 +738,7 @@ class _CardHeader extends StatelessWidget {
             alignment: Alignment.center,
             decoration: BoxDecoration(
               color: tokens.iconBadgeBg,
-              borderRadius: const BorderRadius.all(Radius.circular(12)),
+              borderRadius: AppRadii.notice,
             ),
             child: Icon(icon, size: 18, color: tokens.goldDeep),
           ),
@@ -783,7 +788,7 @@ class _StatusPill extends StatelessWidget {
         border: Border.all(
           color: isError ? tokens.dangerBorder : tokens.successBorder,
         ),
-        borderRadius: const BorderRadius.all(Radius.circular(12)),
+        borderRadius: AppRadii.notice,
       ),
       child: Text(
         message,

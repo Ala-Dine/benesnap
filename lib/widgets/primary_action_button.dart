@@ -37,9 +37,7 @@ class PrimaryActionButton extends StatelessWidget {
       onPressed: busy ? null : onPressed,
       style: AppTheme.darkButtonStyle(
         context,
-        shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.all(Radius.circular(13)),
-        ),
+        shape: const RoundedRectangleBorder(borderRadius: AppRadii.field),
       ),
       child: busy
           ? SizedBox(

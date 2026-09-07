@@ -323,7 +323,7 @@ class _ProductDetailCard extends ConsumerWidget {
 
     return AppCard(
       padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 46),
-      borderRadius: const BorderRadius.all(Radius.circular(28)),
+      borderRadius: AppRadii.hero,
       // Heavier and warmer than the shared cardShadow default — this is the
       // one full-screen "hero" card in the app.
       boxShadow: [
@@ -490,9 +490,7 @@ class _ProductDetailCard extends ConsumerWidget {
                         child: Container(
                           decoration: BoxDecoration(
                             color: tokens.imagePanelBg,
-                            borderRadius: const BorderRadius.all(
-                              Radius.circular(22),
-                            ),
+                            borderRadius: AppRadii.panel,
                             border: Border.all(color: tokens.imagePanelBorder),
                           ),
                           alignment: Alignment.center,
@@ -539,7 +537,7 @@ class _SuitabilityChip extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: isSkin ? tokens.skinChipBg : tokens.hairChipBg,
-        borderRadius: const BorderRadius.all(Radius.circular(999)),
+        borderRadius: AppRadii.pill,
       ),
       child: Text(
         tag.label,
@@ -562,7 +560,7 @@ class _StatusCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      borderRadius: const BorderRadius.all(Radius.circular(28)),
+      borderRadius: AppRadii.hero,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [

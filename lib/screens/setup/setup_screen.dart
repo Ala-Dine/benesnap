@@ -110,14 +110,8 @@ class _SetupScreenState extends ConsumerState<SetupScreen> {
               child: Center(
                 child: AppCard(
                   padding: const EdgeInsets.fromLTRB(36, 40, 36, 34),
-                  borderRadius: const BorderRadius.all(Radius.circular(28)),
-                  boxShadow: [
-                    BoxShadow(
-                      color: tokens.shadowColor.withValues(alpha: 0.20),
-                      blurRadius: 56,
-                      offset: const Offset(0, 24),
-                    ),
-                  ],
+                  borderRadius: AppRadii.hero,
+                  boxShadow: tokens.modalShadow,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 420),
                     child: Column(

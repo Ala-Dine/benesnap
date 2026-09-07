@@ -785,7 +785,7 @@ class _ImageDropZone extends StatelessWidget {
     final theme = Theme.of(context);
     final tokens = AppTokens.of(context);
     final path = imagePath;
-    const radius = BorderRadius.all(Radius.circular(20));
+    const radius = AppRadii.card;
 
     return DropTarget(
       onDragDone: (details) {
@@ -1013,9 +1013,7 @@ class _ChipGroupState extends State<_ChipGroup> {
                     ),
                     hintText: 'اسم الوسم',
                     border: OutlineInputBorder(
-                      borderRadius: const BorderRadius.all(
-                        Radius.circular(999),
-                      ),
+                      borderRadius: AppRadii.pill,
                       borderSide: BorderSide(color: tokens.border),
                     ),
                   ),
@@ -1043,7 +1041,7 @@ class _AddChipButton extends StatelessWidget {
 
     return DashedBorderBox(
       color: tokens.dropzoneBorder,
-      borderRadius: const BorderRadius.all(Radius.circular(999)),
+      borderRadius: AppRadii.pill,
       child: Material(
         color: Colors.transparent,
         child: InkWell(
@@ -1117,7 +1115,7 @@ class _EditableTagChip extends StatelessWidget {
                     height: 20,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.08),
+                      color: tokens.ink.withValues(alpha: 0.08),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(Icons.close_rounded, size: 12, color: fg),

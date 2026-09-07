@@ -25,7 +25,7 @@ class ScanIndicator extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(0, 34, 0, 28),
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
-        borderRadius: const BorderRadius.all(Radius.circular(26)),
+        borderRadius: AppRadii.kioskCard,
         boxShadow: tokens.prominentShadow,
       ),
       // The spinner state is around 70px shorter than the listening one, so
