@@ -313,7 +313,7 @@ KeyDownEvent _downEvent({String? character, LogicalKeyboardKey? logicalKey}) {
 }
 
 KeyUpEvent _upEvent() {
-  return KeyUpEvent(
+  return const KeyUpEvent(
     physicalKey: PhysicalKeyboardKey.keyA,
     logicalKey: LogicalKeyboardKey.keyA,
     timeStamp: Duration.zero,

@@ -108,7 +108,7 @@ class AuthService {
 
     if (attempts >= maxAttempts) {
       _lockedUntil[key] = _now().add(lockoutDuration);
-      return LoginFailure(
+      return const LoginFailure(
         LoginFailureReason.lockedOut,
         lockoutRemaining: lockoutDuration,
       );

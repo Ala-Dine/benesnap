@@ -9,8 +9,8 @@ import 'package:benesnap/data/repositories/tag_repository.dart';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as path;
-import 'package:sqlite3/sqlite3.dart' as sqlite3;
 
+import '../helpers/legacy_schemas.dart';
 import '../helpers/test_db.dart';
 
 ProductDraft _draft({String barcode = 'TAGTEST1', Set<int> tagIds = const {}}) {
@@ -150,7 +150,7 @@ void main() {
         addTearDown(() => dir.deleteSync(recursive: true));
         final dbFile = File(path.join(dir.path, 'v1.sqlite'));
 
-        final dryTagId = _createV1Database(dbFile);
+        final dryTagId = createV1Database(dbFile);
 
         final db = AppDatabase(NativeDatabase(dbFile));
         addTearDown(db.close);
@@ -190,7 +190,7 @@ void main() {
       addTearDown(() => dir.deleteSync(recursive: true));
       final dbFile = File(path.join(dir.path, 'v1.sqlite'));
 
-      _createV1Database(dbFile);
+      createV1Database(dbFile);
 
       final first = AppDatabase(NativeDatabase(dbFile));
       final firstCount = await TagRepository(first).all();
@@ -203,102 +203,4 @@ void main() {
       expect(secondCount.length, firstCount.length);
     });
   });
-}
-
-/// Builds a database file shaped exactly like a v1 (`schemaVersion == 1`)
-/// BeneSnap database: the original English seed, inserted in the same order
-/// the old seed used, plus one product linked to the 'Dry' tag — so the
-/// migration test can verify that an existing product-tag link survives the
-/// v1-to-v2 upgrade. Returns the id assigned to the 'Dry' row.
-int _createV1Database(File dbFile) {
-  final raw = sqlite3.sqlite3.open(dbFile.path);
-
-  raw.execute('''
-    CREATE TABLE products (
-      id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-      barcode TEXT NOT NULL UNIQUE,
-      brand_name TEXT NOT NULL,
-      product_name TEXT NOT NULL,
-      key_ingredients TEXT NOT NULL,
-      core_benefits TEXT NOT NULL,
-      image_path TEXT,
-      created_at INTEGER NOT NULL,
-      updated_at INTEGER NOT NULL
-    );
-    CREATE TABLE suitability_tags (
-      id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-      label TEXT NOT NULL,
-      category TEXT NOT NULL,
-      UNIQUE(label, category)
-    );
-    CREATE TABLE product_tags (
-      product_id INTEGER NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-      tag_id INTEGER NOT NULL REFERENCES suitability_tags(id) ON DELETE CASCADE,
-      PRIMARY KEY(product_id, tag_id)
-    );
-    CREATE TABLE admins (
-      id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-      username TEXT NOT NULL UNIQUE,
-      password_hash TEXT NOT NULL,
-      created_at INTEGER NOT NULL
-    );
-  ''');
-
-  const skinTypes = [
-    'Normal',
-    'Dry',
-    'Oily',
-    'Combination',
-    'Sensitive',
-    'Acne-prone',
-    'Mature',
-  ];
-  const hairTypes = [
-    'Straight',
-    'Wavy',
-    'Curly',
-    'Coily',
-    'Fine',
-    'Thick',
-    'Oily scalp',
-    'Dry scalp',
-    'Colour-treated',
-    'Damaged',
-  ];
-
-  final insertTag = raw.prepare(
-    'INSERT INTO suitability_tags (label, category) VALUES (?, ?)',
-  );
-  for (final label in skinTypes) {
-    insertTag.execute([label, 'skin']);
-  }
-  for (final label in hairTypes) {
-    insertTag.execute([label, 'hair']);
-  }
-  insertTag.close();
-
-  final dryId =
-      raw
-              .select("SELECT id FROM suitability_tags WHERE label = 'Dry'")
-              .first['id']
-          as int;
-
-  final now = DateTime.now().millisecondsSinceEpoch;
-  raw.execute(
-    'INSERT INTO products '
-    '(barcode, brand_name, product_name, key_ingredients, core_benefits, '
-    'created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)',
-    ['MIGRATE1', 'Brand', 'Product', 'Water', 'Shine', now, now],
-  );
-  final productId = raw.lastInsertRowId;
-
-  raw.execute('INSERT INTO product_tags (product_id, tag_id) VALUES (?, ?)', [
-    productId,
-    dryId,
-  ]);
-
-  raw.execute('PRAGMA user_version = 1');
-  raw.close();
-
-  return dryId;
 }

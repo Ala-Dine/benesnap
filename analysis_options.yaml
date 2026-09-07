@@ -14,6 +14,7 @@ linter:
   rules:
     - always_declare_return_types
     - avoid_print
+    - prefer_const_constructors
     - prefer_final_locals
     - prefer_single_quotes
     - unawaited_futures

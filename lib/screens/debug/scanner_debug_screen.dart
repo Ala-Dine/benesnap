@@ -102,7 +102,7 @@ class _ScannerDebugScreenState extends ConsumerState<ScannerDebugScreen> {
                       child: _Panel(
                         title: 'Keystrokes (newest first)',
                         child: _samples.isEmpty
-                            ? _Hint(
+                            ? const _Hint(
                                 text:
                                     'Scan something, or type, to see timings.',
                               )
@@ -121,7 +121,9 @@ class _ScannerDebugScreenState extends ConsumerState<ScannerDebugScreen> {
                       child: _Panel(
                         title: 'Accepted scans',
                         child: _scans.isEmpty
-                            ? _Hint(text: 'No scan has been accepted yet.')
+                            ? const _Hint(
+                                text: 'No scan has been accepted yet.',
+                              )
                             : ListView.builder(
                                 itemCount: _scans.length,
                                 itemBuilder: (context, i) {

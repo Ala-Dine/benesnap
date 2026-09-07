@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: 3.44.8
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      # `app_database.g.dart` is committed, so there is no codegen step here.
+      # If a build ever fails on a stale generated file, the fix is to run
+      # `dart run build_runner build --delete-conflicting-outputs` and commit
+      # the result — not to generate it in CI, where a drift_dev resolution
+      # differing from the pinned one would silently change the schema.
+
+      - name: Formatting
+        run: dart format --output=none --set-exit-if-changed lib test
+
+      - name: Analysis
+        run: flutter analyze
+
+      - name: Tests
+        run: flutter test
