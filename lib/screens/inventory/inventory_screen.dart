@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
@@ -29,6 +30,19 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
   final _searchFocusNode = FocusNode();
   bool _searchFocused = false;
 
+  /// The live search text. A ValueNotifier rather than setState so a
+  /// keystroke rebuilds the grid and nothing else — the header, the back and
+  /// settings buttons, and the search field itself all stayed identical
+  /// while being rebuilt on every character.
+  final _query = ValueNotifier<String>('');
+  Timer? _debounce;
+
+  /// Lowercased search text per product, rebuilt only when the catalogue
+  /// itself changes. Filtering used to lowercase three fields per product
+  /// per keystroke.
+  List<Product>? _haystackSource;
+  List<String> _haystacks = const [];
+
   @override
   void initState() {
     super.initState();
@@ -43,6 +57,8 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
 
   @override
   void dispose() {
+    _debounce?.cancel();
+    _query.dispose();
     _searchController.dispose();
     _searchFocusNode.removeListener(_onSearchFocusChange);
     _searchFocusNode.dispose();
@@ -57,18 +73,33 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     }
   }
 
-  List<Product> _filter(List<Product> products) {
-    final query = _searchController.text.trim().toLowerCase();
-    if (query.isEmpty) return products;
+  /// Typing runs ahead of filtering: a shop assistant types a brand name
+  /// faster than it is worth re-filtering the catalogue for each letter, and
+  /// the intermediate results are never read.
+  void _onQueryChanged(String value) {
+    _debounce?.cancel();
+    _debounce = Timer(const Duration(milliseconds: 150), () {
+      _query.value = value.trim();
+    });
+  }
 
-    return products
-        .where(
-          (p) =>
-              p.brandName.toLowerCase().contains(query) ||
-              p.productName.toLowerCase().contains(query) ||
-              p.keyIngredients.toLowerCase().contains(query),
-        )
-        .toList();
+  List<Product> _filter(List<Product> products, String query) {
+    // A pure cache: same input list, same output. Rebuilt by identity rather
+    // than equality because a new list means new haystacks regardless.
+    if (!identical(_haystackSource, products)) {
+      _haystackSource = products;
+      _haystacks = [
+        for (final p in products)
+          '${p.brandName} ${p.productName} ${p.keyIngredients}'.toLowerCase(),
+      ];
+    }
+
+    if (query.isEmpty) return products;
+    final needle = query.toLowerCase();
+    return [
+      for (var i = 0; i < products.length; i++)
+        if (_haystacks[i].contains(needle)) products[i],
+    ];
   }
 
   Future<void> _confirmDelete(Product product) async {
@@ -177,7 +208,7 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             child: TextField(
               controller: _searchController,
               focusNode: _searchFocusNode,
-              onChanged: (_) => setState(() {}),
+              onChanged: _onQueryChanged,
               style: const TextStyle(fontSize: 15),
               decoration: InputDecoration(
                 isCollapsed: true,
@@ -256,7 +287,6 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
     final theme = Theme.of(context);
     final tokens = AppTokens.of(context);
     final productsAsync = ref.watch(productsStreamProvider);
-    final query = _searchController.text.trim();
 
     return Scaffold(
       body: SafeArea(
@@ -329,13 +359,16 @@ class _InventoryScreenState extends ConsumerState<InventoryScreen> {
             ),
             Expanded(
               child: productsAsync.when(
-                data: (products) => _InventoryGrid(
-                  products: _filter(products),
-                  isSearching: query.isNotEmpty,
-                  query: query,
-                  onAdd: _addProduct,
-                  onOpen: _openProduct,
-                  onDelete: _confirmDelete,
+                data: (products) => ValueListenableBuilder<String>(
+                  valueListenable: _query,
+                  builder: (context, query, _) => _InventoryGrid(
+                    products: _filter(products, query),
+                    isSearching: query.isNotEmpty,
+                    query: query,
+                    onAdd: _addProduct,
+                    onOpen: _openProduct,
+                    onDelete: _confirmDelete,
+                  ),
                 ),
                 loading: () => const Center(child: CircularProgressIndicator()),
                 error: (error, stack) => Center(
@@ -421,6 +454,13 @@ class _InventoryGrid extends StatelessWidget {
             child: SizedBox(
               width: cardWidth,
               child: _ProductCard(
+                // Keyed by product, not position: _ProductCard is stateful
+                // (it tracks hover) and holds a FileImage. Without this,
+                // filtering or deleting re-associates both with whatever
+                // product now sits at that index — a card left looking
+                // "lifted" over a different product, or briefly showing the
+                // previous row's photo.
+                key: ValueKey(products[index].id),
                 product: products[index],
                 onTap: () => onOpen(products[index]),
                 onDelete: () => onDelete(products[index]),
@@ -501,6 +541,7 @@ class _EmptyState extends StatelessWidget {
 /// `translateY(-3px)` interaction.
 class _ProductCard extends ConsumerStatefulWidget {
   const _ProductCard({
+    super.key,
     required this.product,
     required this.onTap,
     required this.onDelete,
@@ -526,14 +567,22 @@ class _ProductCard extends ConsumerStatefulWidget {
   /// taller at once, and a fixed extent would then overflow in every card
   /// in the grid simultaneously.
   static double chromeHeightFor(BuildContext context) {
-    const fixed = 14.0 + 14.0 + 12.0;
+    // 100 is the measured value at the default text scale — paddings, gap
+    // and three rows, plus the few pixels of ascent/descent rounding that
+    // recomputing the rows from font sizes alone doesn't account for. Rather
+    // than re-derive it and lose that slack, add only what a larger text
+    // scale grows the three rows *by*, so the default case stays exactly as
+    // it was.
+    const atDefaultScale = 100.0;
+    const rowSizes = [12.0, 17.0, 12.0];
+    const lineHeight = 1.3;
+
     final scaler = MediaQuery.textScalerOf(context);
-    final rows = [
-      12.0,
-      17.0,
-      12.0,
-    ].map((size) => scaler.scale(size) * 1.3).reduce((a, b) => a + b);
-    return fixed + rows;
+    var extra = 0.0;
+    for (final size in rowSizes) {
+      extra += (scaler.scale(size) - size) * lineHeight;
+    }
+    return atDefaultScale + extra;
   }
 
   @override

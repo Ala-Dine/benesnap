@@ -13,6 +13,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../helpers/drift_settle.dart';
+
 void main() {
   testWidgets(
     'the very first frame already uses the shop\'s saved theme — no flash '
@@ -72,16 +74,7 @@ void main() {
         ),
       );
 
-      // Tear the tree down explicitly and let drift's own live-query stream
-      // (still subscribed via HomeTextNotifier) settle before the test
-      // ends — otherwise the test framework's own teardown finds this
-      // ProviderScope was never disposed until *after* the test body
-      // returns, with no pump left to give its cleanup timer anywhere to
-      // run, and flags it as a leak.
-      await tester.pumpWidget(const SizedBox());
-      for (var i = 0; i < 150; i++) {
-        await tester.pump(const Duration(milliseconds: 20));
-      }
+      await disposeAndDrain(tester);
     },
   );
 }
